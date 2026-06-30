@@ -1,0 +1,1 @@
+/*Integrates with databases (e.g., Pinecone, Chroma) to store or query vector representations.*/

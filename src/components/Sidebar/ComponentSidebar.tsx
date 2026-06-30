@@ -1,0 +1,1 @@
+/*Left/right palette containing all draggable nodes categorized for easy discovery.*/

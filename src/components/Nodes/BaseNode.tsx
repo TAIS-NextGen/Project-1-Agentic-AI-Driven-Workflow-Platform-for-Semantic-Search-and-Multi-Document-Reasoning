@@ -1,0 +1,1 @@
+/* The generic shell/wrapper node sharing common UI styles, titles, delete actions, and connection handles.*/

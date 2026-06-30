@@ -1,0 +1,1 @@
+/*The engine responsible for resolving node dependencies (e.g., executing parent nodes before children, verifying connection loops) and running the logic of the pipeline in sequence or parallel.*/

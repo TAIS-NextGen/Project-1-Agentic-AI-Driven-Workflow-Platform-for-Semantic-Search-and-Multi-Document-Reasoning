@@ -1,0 +1,1 @@
+/*segments document text into chunks before embedding.*/

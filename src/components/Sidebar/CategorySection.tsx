@@ -1,0 +1,1 @@
+/*ollapsible segments inside the sidebar (e.g., "AI Models", "Data Loaders", "Logic Operators").*/

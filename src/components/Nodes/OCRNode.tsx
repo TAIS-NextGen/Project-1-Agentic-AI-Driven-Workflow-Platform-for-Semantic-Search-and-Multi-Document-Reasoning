@@ -1,0 +1,1 @@
+ //Optical Character Recognition node to extract text from images.

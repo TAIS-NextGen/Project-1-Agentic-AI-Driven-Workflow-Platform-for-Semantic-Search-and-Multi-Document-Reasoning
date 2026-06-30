@@ -1,0 +1,1 @@
+//Control bar for global actions (Save, Clear, Undo, Redo, Run Workflow, Zoom controls).
