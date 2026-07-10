@@ -30,7 +30,7 @@ class WorkflowValidator:
     def _validate_node_existence(self) -> list[str]:
         errors = []
         for n in self.graph.nodes.values():
-            if n.node_type not in self._node_map:
+            if n.node_type not in {cls.type for cls in self._node_map.values()}:
                 errors.append(f"Node '{n.node_id}': unknown type '{n.node_type}'")
         return errors
 
@@ -102,6 +102,9 @@ class WorkflowValidator:
         for nid in self.graph.nodes:
             incoming, outgoing = self.graph.get_edges(nid)
             if not incoming and not outgoing:
+                node_cls = self._node_map.get(nid)
+                if node_cls and all(not inp.required for inp in node_cls.inputs):
+                    continue
                 errors.append(f"Node '{nid}' is orphaned (no connections)")
         return errors
 
