@@ -1,0 +1,86 @@
+---
+description: Visual design system for FlowDocs frontend (dark theme, dev-tool aesthetic)
+globs:
+alwaysApply: true
+---
+
+# FlowDocs Design System
+
+Dark-theme, dense, developer-tool aesthetic (similar to Linear / Vercel
+dashboard / n8n). Prioritize information density and clarity over decoration.
+
+## Colors
+
+- Background (app shell): `#0d0f14`
+- Panel / card background: `#151822`
+- Sidebar background: `#12141a` (slightly darker than cards)
+- Border / divider: `#23262f` (thin, 1px, subtle — never heavy shadows)
+- Primary text: `#e5e7eb`
+- Secondary/muted text: `#9ca3af`
+- Accent (primary actions, active nav item, selected node, links):
+  `#3b82f6`
+- Accent hover: `#2563eb`
+
+### Status colors (used consistently across nodes, badges, logs)
+- Success: `#22c55e` (green)
+- Running / in-progress: `#3b82f6` (blue)
+- Idle / waiting: `#9ca3af` (gray)
+- Warning: `#f59e0b` (amber)
+- Error: `#ef4444` (red)
+
+### Category accent colors (node left-border / icon color on canvas)
+- Preprocessing: cyan/teal
+- OCR: orange
+- RAG / Embeddings: purple
+- Extraction: pink/magenta
+- Export / Output: yellow
+- Logic / Conditions: blue
+
+## Layout
+
+- **Left sidebar**: fixed width (~200-220px), icon + label nav items,
+  logo/app name at top, "+ New Workflow" primary button below logo,
+  user avatar + name pinned to bottom.
+- **Top bar**: breadcrumb-style navigation (e.g. "Workflows > Invoice
+  Processing Pipeline"), with contextual actions on the right (Share,
+  Versions, Run Workflow button in accent blue).
+- **Dashboard**: stat cards in a 4-column grid up top (icon, label, big
+  number, small trend indicator), followed by a card grid of items
+  (workflows/documents) below, each card showing status badge, metadata
+  (node count, run count, last run time).
+- **Node canvas editor**: infinite canvas with draggable nodes connected by
+  curved bezier edges; left palette panel (searchable, grouped by category,
+  collapsible sections); right inspector panel appears when a node is
+  selected, with tabs (Parameters / I-O / Test); zoom controls bottom-left;
+  minimap bottom-right.
+- **Execution view**: same canvas layout but read-only, with a right-side
+  live log panel (timestamped, color-coded by level: info/warn/error) and a
+  top progress bar showing overall run completion.
+
+## Typography
+
+- Base font size: 13-14px (dense, not spacious)
+- Font weight: medium (500) for labels/headers, regular (400) for body/logs
+- Headers use a slightly larger size (15-16px) with lighter weight, muted
+  color (e.g. page titles like "Dashboard" appear in muted gray, not white)
+
+## Components
+
+- Cards: `rounded-lg` (8px), subtle 1px border, no heavy box-shadow, slight
+  background lift from the page background
+- Buttons: primary = accent blue background, white text, `rounded-md`;
+  secondary = transparent/outline with border
+- Badges/status pills: small, `rounded-full`, colored dot + label, colored
+  text matching status color at reduced opacity background
+- Node cards on canvas: `rounded-md`, colored left border (2-3px) by
+  category, icon + node name + node type subtitle + status dot
+- Inputs/dropdowns: dark background (`#0d0f14` or `#151822`), thin border,
+  focus state uses accent blue border/ring
+
+## Non-negotiables
+
+- Never use light backgrounds or light-mode colors anywhere.
+- Never use heavy drop-shadows — depth comes from subtle border + background
+  contrast only.
+- Keep spacing tight and information-dense; do not add generous whitespace
+  that would look like a marketing site rather than a dev tool.
