@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react';
-
 import { useWorkflowStore } from '../../store/workflowStore';
 import type { AppRoute, SidebarUser } from '../../types';
-
 import styles from './Sidebar.module.css';
 
 export interface SidebarProps {
@@ -17,9 +15,7 @@ interface NavItemConfig {
   icon: ReactNode;
 }
 
-const DEFAULT_USER: SidebarUser = {
-  name: 'Alex Morgan',
-};
+const DEFAULT_USER: SidebarUser = { name: 'Alex Morgan' };
 
 const NAV_ITEMS: NavItemConfig[] = [
   {
@@ -42,12 +38,7 @@ const NAV_ITEMS: NavItemConfig[] = [
         <circle cx="3.5" cy="8" r="1.75" stroke="currentColor" strokeWidth="1.25" />
         <circle cx="12.5" cy="4" r="1.75" stroke="currentColor" strokeWidth="1.25" />
         <circle cx="12.5" cy="12" r="1.75" stroke="currentColor" strokeWidth="1.25" />
-        <path
-          d="M5.25 7.25L10.75 4.75M5.25 8.75L10.75 11.25"
-          stroke="currentColor"
-          strokeWidth="1.25"
-          strokeLinecap="round"
-        />
+        <path d="M5.25 7.25L10.75 4.75M5.25 8.75L10.75 11.25" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -56,12 +47,7 @@ const NAV_ITEMS: NavItemConfig[] = [
     label: 'Documents',
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-        <path
-          d="M4.5 2.5H9.5L12.5 5.5V13.5C12.5 13.7761 12.2761 14 12 14H4.5C4.22386 14 4 13.7761 4 13.5V3C4 2.72386 4.22386 2.5 4.5 2.5Z"
-          stroke="currentColor"
-          strokeWidth="1.25"
-          strokeLinejoin="round"
-        />
+        <path d="M4.5 2.5H9.5L12.5 5.5V13.5C12.5 13.7761 12.2761 14 12 14H4.5C4.22386 14 4 13.7761 4 13.5V3C4 2.72386 4.22386 2.5 4.5 2.5Z" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round" />
         <path d="M9.5 2.5V5.5H12.5" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round" />
         <path d="M6 8H10.5M6 10.5H10.5" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
       </svg>
@@ -73,13 +59,7 @@ const NAV_ITEMS: NavItemConfig[] = [
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <circle cx="8" cy="8" r="5.75" stroke="currentColor" strokeWidth="1.25" />
-        <path
-          d="M8 5.5V8.25L10 9.75"
-          stroke="currentColor"
-          strokeWidth="1.25"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <path d="M8 5.5V8.25L10 9.75" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
@@ -89,12 +69,7 @@ const NAV_ITEMS: NavItemConfig[] = [
     icon: (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
         <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.25" />
-        <path
-          d="M8 1.5V3M8 13V14.5M14.5 8H13M3 8H1.5M12.5962 3.40381L11.5355 4.46447M4.46447 11.5355L3.40381 12.5962M12.5962 12.5962L11.5355 11.5355M4.46447 4.46447L3.40381 3.40381"
-          stroke="currentColor"
-          strokeWidth="1.25"
-          strokeLinecap="round"
-        />
+        <path d="M8 1.5V3M8 13V14.5M14.5 8H13M3 8H1.5M12.5962 3.40381L11.5355 4.46447M4.46447 11.5355L3.40381 12.5962M12.5962 12.5962L11.5355 11.5355M4.46447 4.46447L3.40381 3.40381" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -119,27 +94,18 @@ export function Sidebar({ activeRoute, onNavigate, user = DEFAULT_USER }: Sideba
 
   return (
     <aside className={styles.sidebar} aria-label="Main navigation">
+      {/* Logo */}
       <div className={styles.header}>
         <div className={styles.logoMark} aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path
-              d="M3 4.5H10.5M3 8H8M3 11.5H10.5"
-              stroke="currentColor"
-              strokeWidth="1.25"
-              strokeLinecap="round"
-            />
-            <path
-              d="M11.5 6.5L13.5 8L11.5 9.5"
-              stroke="currentColor"
-              strokeWidth="1.25"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+            <path d="M3 4.5H10.5M3 8H8M3 11.5H10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M11.5 6.5L13.5 8L11.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
         <span className={styles.logoText}>FlowDocs</span>
       </div>
 
+      {/* New Workflow CTA */}
       <button type="button" className={styles.newWorkflowBtn} onClick={handleNewWorkflow}>
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M7 2.5V11.5M2.5 7H11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -147,10 +113,10 @@ export function Sidebar({ activeRoute, onNavigate, user = DEFAULT_USER }: Sideba
         New Workflow
       </button>
 
+      {/* Navigation */}
       <nav className={styles.nav} aria-label="App sections">
         {NAV_ITEMS.map((item) => {
           const isActive = activeRoute === item.route;
-
           return (
             <button
               key={item.route}
@@ -161,11 +127,13 @@ export function Sidebar({ activeRoute, onNavigate, user = DEFAULT_USER }: Sideba
             >
               <span className={styles.navIcon}>{item.icon}</span>
               {item.label}
+              {isActive && <span className={styles.activeIndicator}></span>}
             </button>
           );
         })}
       </nav>
 
+      {/* User Footer */}
       <div className={styles.footer}>
         <div className={styles.avatar} aria-hidden="true">
           {user.avatarUrl ? (
@@ -176,8 +144,13 @@ export function Sidebar({ activeRoute, onNavigate, user = DEFAULT_USER }: Sideba
         </div>
         <div className={styles.userInfo}>
           <span className={styles.userName}>{user.name}</span>
-          <span className={styles.userRole}>Workspace</span>
+          <span className={styles.userRole}>Workspace Admin</span>
         </div>
+        <button className={styles.chevronBtn}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M3 5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
     </aside>
   );

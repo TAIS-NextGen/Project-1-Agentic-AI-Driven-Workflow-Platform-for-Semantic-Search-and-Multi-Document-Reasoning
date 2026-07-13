@@ -1,0 +1,361 @@
+.container {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-deep);
+}
+
+/* LEFT PANEL */
+.leftPanel {
+  width: 380px;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Run Status Bar */
+.runStatusBar {
+  padding: 16px 24px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.running { background: #3b82f6; animation: pulse-dot 1.5s infinite; }
+.success { background: #10b981; }
+.failed { background: #ef4444; }
+.idle { background: #6b7280; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.statusLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.elapsed {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1;
+}
+
+.progressTrack {
+  flex: 1;
+  min-width: 80px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, hsl(var(--color-primary)), hsl(var(--color-purple)));
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+.progressFailed {
+  background: linear-gradient(90deg, #ef4444, #b91c1c);
+}
+
+.progressPct {
+  font-size: 11px;
+  font-weight: 600;
+  color: hsl(var(--color-primary));
+  min-width: 30px;
+}
+
+.cancelBtn {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #f87171;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancelBtn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* Node Status Panel */
+.nodeStatusPanel {
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+.nodeStatusPanel h3,
+.runsHistory h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 16px 0;
+}
+
+.nodeStatusList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nodeStatusRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.nodeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.nodeStatusName {
+  flex: 1;
+}
+
+.nodeStatusText {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.nodeStatusText.success { color: #34d399; }
+.nodeStatusText.running { color: #60a5fa; }
+.nodeStatusText.error { color: #f87171; }
+.nodeStatusText.idle { color: var(--text-dim); }
+
+.runningSpinner {
+  font-size: 12px;
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Runs History */
+.runsHistory {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.runsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.runRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.runRow:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.runDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.runDot.success { background: #10b981; }
+.runDot.running { background: #3b82f6; animation: pulse-dot 1.5s infinite; }
+.runDot.failed { background: #ef4444; }
+
+.runInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.runName {
+  font-weight: 500;
+}
+
+.runId {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.runStatus {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.runStatus.success {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+}
+.runStatus.running {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+}
+.runStatus.failed {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+.emptyHint {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* RIGHT PANEL — Logs */
+.rightPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.logsHeader {
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.logsHeader h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.logFilterGroup {
+  display: flex;
+  gap: 4px;
+}
+
+.filterBtn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filterBtn:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.filterBtnActive {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: hsl(var(--color-primary));
+}
+
+.logsBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+}
+
+.logEntry {
+  display: grid;
+  grid-template-columns: 70px 120px 1fr;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  align-items: start;
+  transition: background 0.15s;
+}
+
+.logEntry:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.log_info .logNode { color: hsl(var(--color-info)); }
+.log_warn { background: rgba(234, 179, 8, 0.04); }
+.log_warn .logNode { color: hsl(var(--color-warning)); }
+.log_error { background: rgba(239, 68, 68, 0.05); }
+.log_error .logNode { color: hsl(var(--color-danger)); }
+
+.logTime {
+  color: var(--text-dim);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.logNode {
+  font-weight: 600;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.logMsg {
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.emptyLogs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-dim);
+}
+
+.emptyLogs span {
+  font-size: 40px;
+}
+
+.emptyLogs p {
+  font-size: 13px;
+  text-align: center;
+}
