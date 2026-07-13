@@ -1,172 +1,193 @@
 .sidebar {
+  width: 240px;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  width: 210px;
-  min-width: 210px;
-  height: 100%;
-  background: #12141a;
-  border-right: 1px solid #23262f;
-  color: #e5e7eb;
-  font-size: 13px;
+  background: rgba(12, 14, 22, 0.85);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .header {
+  padding: 20px 20px 8px 20px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 14px 12px 10px;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  margin-bottom: 16px;
 }
 
 .logoMark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, hsl(var(--color-primary)) 0%, hsl(var(--color-purple)) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: #151822;
-  border: 1px solid #23262f;
-  color: #3b82f6;
+  color: white;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
   flex-shrink: 0;
 }
 
 .logoText {
-  font-size: 14px;
-  font-weight: 500;
-  color: #e5e7eb;
-  letter-spacing: -0.01em;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(to right, #ffffff, #a5b4fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
+/* CTA Button */
 .newWorkflowBtn {
+  margin: 0 16px 16px 16px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin: 0 10px 12px;
-  padding: 7px 10px;
-  border: none;
-  border-radius: 6px;
-  background: #3b82f6;
+  gap: 8px;
+  background: linear-gradient(135deg, hsl(var(--color-primary)) 0%, hsl(var(--color-purple)) 100%);
   color: #ffffff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
   font-size: 13px;
-  font-weight: 500;
   cursor: pointer;
-  transition: background 120ms ease;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.25);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  justify-content: center;
 }
 
 .newWorkflowBtn:hover {
-  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+  filter: brightness(1.1);
 }
 
-.newWorkflowBtn:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
-}
-
+/* Nav */
 .nav {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  flex: 1;
-  padding: 0 8px;
+  padding: 0 12px;
   overflow-y: auto;
 }
 
 .navItem {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 7px 8px;
+  gap: 10px;
+  padding: 10px 12px;
   border: none;
-  border-radius: 6px;
   background: transparent;
-  color: #9ca3af;
+  color: var(--text-muted);
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  text-align: left;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: all 0.18s ease;
+  position: relative;
+  text-align: left;
 }
 
 .navItem:hover {
-  background: #151822;
-  color: #e5e7eb;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .navItemActive {
-  background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
-}
-
-.navItemActive:hover {
-  background: rgba(59, 130, 246, 0.16);
-  color: #3b82f6;
-}
-
-.navItem:focus-visible {
-  outline: 2px solid #3b82f6;
-  outline-offset: 1px;
+  color: var(--text-main);
+  background: rgba(99, 102, 241, 0.08);
 }
 
 .navIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
 }
 
+.activeIndicator {
+  position: absolute;
+  right: 10px;
+  width: 6px;
+  height: 6px;
+  background: hsl(var(--color-primary));
+  border-radius: 50%;
+  box-shadow: 0 0 8px hsl(var(--color-primary));
+}
+
+/* Footer */
 .footer {
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-top: 1px solid #23262f;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.footer:hover {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, hsl(var(--color-primary)) 0%, hsl(var(--color-purple)) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #151822;
-  border: 1px solid #23262f;
-  color: #9ca3af;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 700;
+  color: white;
   flex-shrink: 0;
-  overflow: hidden;
 }
 
 .avatarImage {
   width: 100%;
   height: 100%;
+  border-radius: 50%;
   object-fit: cover;
 }
 
 .userInfo {
-  display: flex;
-  flex-direction: column;
+  flex: 1;
   min-width: 0;
 }
 
 .userName {
+  display: block;
   font-size: 13px;
-  font-weight: 500;
-  color: #e5e7eb;
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .userRole {
-  font-size: 11px;
-  color: #9ca3af;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: block;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+.chevronBtn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
