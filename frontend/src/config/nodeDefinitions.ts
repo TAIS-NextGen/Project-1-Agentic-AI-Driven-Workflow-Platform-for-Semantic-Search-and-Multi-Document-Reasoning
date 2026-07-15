@@ -58,6 +58,16 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     defaultConfig: {},
   },
   {
+    type: 'document-upload',
+    name: 'Document Upload',
+    category: 'Preprocessing',
+    icon: '⬆️',
+    color: CATEGORY_COLORS.Preprocessing,
+    description: 'Upload a local document to the backend storage service',
+    defaultConfig: {},
+    backendType: 'document-upload',
+  },
+  {
     type: 'denoising',
     name: 'Denoising',
     category: 'Preprocessing',

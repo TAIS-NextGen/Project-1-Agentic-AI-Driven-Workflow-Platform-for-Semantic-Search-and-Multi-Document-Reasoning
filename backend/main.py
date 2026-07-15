@@ -4,6 +4,10 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+import os
+
 from backend.api import nodes, workflows, documents
 from backend.settings import settings
 
@@ -13,6 +17,12 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Ensure directories exist before mounting static files
+Path("data/uploads").mkdir(parents=True, exist_ok=True)
+Path("data/storage").mkdir(parents=True, exist_ok=True)
+
+app.mount("/data", StaticFiles(directory="data"), name="data")
 
 app.add_middleware(
     CORSMiddleware,

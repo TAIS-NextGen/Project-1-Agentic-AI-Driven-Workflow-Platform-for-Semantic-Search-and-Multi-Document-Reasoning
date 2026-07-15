@@ -110,7 +110,11 @@ class ImageDenoiseNode(BaseNode):
                     result.fail(f"Image with ID '{file_id}' not found in upload directory")
                     return result
 
-            file_path = Path(file_data["path"])
+            path_val = file_data.get("path") or file_data.get("file_path")
+            if not path_val:
+                result.fail("No file path found in input dictionary ('path' or 'file_path')")
+                return result
+            file_path = Path(path_val)
             if not file_path.exists():
                 result.fail(f"File not found at path: {file_path}")
                 return result
@@ -157,6 +161,7 @@ class ImageDenoiseNode(BaseNode):
                     "image": {
                         "filename": original_name,
                         "path": str(out_path),
+                        "file_path": str(out_path),
                         "size_bytes": out_path.stat().st_size,
                         "mime_type": "image/png" if ext.lower() == ".png" else "image/jpeg",
                     },

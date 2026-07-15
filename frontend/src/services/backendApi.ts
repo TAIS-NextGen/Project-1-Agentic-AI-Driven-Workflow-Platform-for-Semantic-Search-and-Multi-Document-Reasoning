@@ -64,3 +64,20 @@ export async function fetchBackendNodeDefinitions(): Promise<NodeDefinition[]> {
   const nodes = Array.isArray(payload.nodes) ? payload.nodes : [];
   return nodes.map(mapBackendNodeToFrontendDefinition);
 }
+
+export async function uploadDocument(file: File): Promise<Record<string, unknown>> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/api/documents/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorPayload = await response.json().catch(() => ({}));
+    throw new Error(errorPayload.detail || `Upload failed (${response.status})`);
+  }
+
+  return response.json();
+}
