@@ -1,0 +1,299 @@
+.panel {
+  width: 320px;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(22, 28, 45, 0.25);
+  backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.25);
+  z-index: 10;
+}
+
+.panelHeader {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.nodeMeta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nodeMeta h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.nodeMeta span {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.nodeIcon {
+  font-size: 24px;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.tab {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.tabActive {
+  color: hsl(var(--color-primary));
+  border-bottom-color: hsl(var(--color-primary));
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.tabContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.fieldsScroll {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formGroup label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.select, .textInput, .textarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text-main);
+  font-size: 12px;
+  outline: none;
+}
+
+.select {
+  cursor: pointer;
+}
+
+.select option {
+  background: var(--bg-dark);
+}
+
+.textarea {
+  font-family: inherit;
+  resize: vertical;
+}
+
+.range {
+  width: 100%;
+  accent-color: hsl(var(--color-primary));
+  cursor: pointer;
+}
+
+.rangeLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-dim);
+}
+
+/* Pills input for languages */
+.pillsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pillActive {
+  background: rgba(99, 102, 241, 0.1);
+  color: hsl(var(--color-primary));
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* Format buttons */
+.formatButtonGroup {
+  display: flex;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 3px;
+  gap: 4px;
+}
+
+.formatBtn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.formatBtnActive {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Toggles */
+.toggleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 20px;
+}
+
+.toggleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.toggleRow input[type="checkbox"] {
+  accent-color: hsl(var(--color-primary));
+  cursor: pointer;
+}
+
+.helpText {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.noParams {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  margin: 40px 0;
+}
+
+/* I/O styling */
+.ioList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ioList h4 {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 0 0 6px 0;
+  letter-spacing: 0.5px;
+}
+
+.ioItem {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.ioType {
+  color: hsl(var(--color-primary));
+  font-weight: 500;
+}
+
+/* Test Section */
+.testSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.testSection p {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.testLog {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.testLog code {
+  color: var(--text-muted);
+}
+
+/* Actions panel footer */
+.panelActions {
+  padding: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.panelActions button {
+  justify-content: center;
+}
