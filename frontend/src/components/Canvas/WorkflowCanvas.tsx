@@ -1,7 +1,8 @@
-import { useState, useRef, type MouseEvent } from 'react';
+import { useEffect, useState, useRef, type MouseEvent } from 'react';
 import { useFlowStore } from '../../store/flowStore';
-import { NODE_DEFINITIONS } from '../../config/nodeDefinitions';
+import { NODE_DEFINITIONS, getNodeDefinition, type NodeDefinition } from '../../config/nodeDefinitions';
 import { NodeConfigPanel } from '../ConfigPanel/NodeConfigPanel';
+import { fetchBackendNodeDefinitions } from '../../services/backendApi';
 import styles from './WorkflowCanvas.module.css';
 
 interface WorkflowCanvasProps {
@@ -27,6 +28,7 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [nodeSearch, setNodeSearch] = useState('');
+  const [backendNodes, setBackendNodes] = useState<NodeDefinition[]>([]);
   
   // Connection states
   const [connectionSource, setConnectionSource] = useState<string | null>(null);
@@ -36,6 +38,26 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const draggedNodeRef = useRef<{ id: string; startX: number; startY: number } | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchBackendNodeDefinitions()
+      .then((definitions) => {
+        if (mounted) {
+          setBackendNodes(definitions);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setBackendNodes([]);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const mergedNodes = [...NODE_DEFINITIONS, ...backendNodes.filter((nodeDefinition) => !NODE_DEFINITIONS.some((existing) => existing.type === nodeDefinition.type))];
 
   // Handle Dragging Nodes
   const handleNodeMouseDown = (e: MouseEvent, nodeId: string) => {
@@ -135,8 +157,8 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
   };
 
   // Group nodes by category
-  const categories = Array.from(new Set(NODE_DEFINITIONS.map(n => n.category)));
-  const filteredNodes = NODE_DEFINITIONS.filter(
+  const categories = Array.from(new Set(mergedNodes.map(n => n.category)));
+  const filteredNodes = mergedNodes.filter(
     n =>
       n.name.toLowerCase().includes(nodeSearch.toLowerCase()) &&
       (!activeCategory || n.category === activeCategory)
@@ -315,7 +337,7 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
             }}
           >
             {nodes.map((node) => {
-              const definition = NODE_DEFINITIONS.find(def => def.type === node.type);
+              const definition = getNodeDefinition(node.type);
               const isSelected = selectedNodeId === node.id;
               
               if (!definition) return null;

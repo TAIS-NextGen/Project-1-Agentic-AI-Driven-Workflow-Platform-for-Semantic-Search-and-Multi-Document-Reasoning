@@ -191,31 +191,40 @@ export function NodeConfigPanel() {
         );
 
       case 'denoising':
+      case 'image-denoise':
         return (
           <>
             <div className={styles.formGroup}>
-              <label>Denoising Strength: {localConfig.strength ?? 0.5}</label>
+              <label>Method</label>
+              <select
+                value={localConfig.method || 'pil-median'}
+                onChange={(e) => handleUpdateField('method', e.target.value)}
+                className={styles.select}
+              >
+                <option value="pil-median">PIL Median Filter</option>
+                <option value="gaussian">Gaussian Blur</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Max File Size (MB): {localConfig.max_file_size_mb ?? 50}</label>
               <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={localConfig.strength ?? 0.5}
-                onChange={(e) => handleUpdateField('strength', parseFloat(e.target.value))}
-                className={styles.range}
+                type="number"
+                min="1"
+                max="500"
+                value={localConfig.max_file_size_mb ?? 50}
+                onChange={(e) => handleUpdateField('max_file_size_mb', parseInt(e.target.value, 10))}
+                className={styles.textInput}
               />
             </div>
             <div className={styles.formGroup}>
-              <label>Dilation/Erosion Filter</label>
-              <select
-                value={localConfig.filter || 'median'}
-                onChange={(e) => handleUpdateField('filter', e.target.value)}
-                className={styles.select}
-              >
-                <option value="median">Median Filter</option>
-                <option value="gaussian">Gaussian Blur</option>
-                <option value="bilateral">Bilateral Filter</option>
-              </select>
+              <label>Allowed Extensions</label>
+              <input
+                type="text"
+                value={(localConfig.allowed_extensions || ['.png', '.jpg', '.jpeg']).join(', ')}
+                onChange={(e) => handleUpdateField('allowed_extensions', e.target.value.split(',').map((entry) => entry.trim()).filter(Boolean))}
+                className={styles.textInput}
+                placeholder=".png, .jpg"
+              />
             </div>
           </>
         );

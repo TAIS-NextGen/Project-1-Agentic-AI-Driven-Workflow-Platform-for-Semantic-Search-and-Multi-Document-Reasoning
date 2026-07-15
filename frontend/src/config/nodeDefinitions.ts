@@ -6,6 +6,16 @@ export type NodeCategory =
   | 'Export/Output'
   | 'Logic/Conditions';
 
+export type NodeDefinitionInput = {
+  type?: string;
+  name?: string;
+  label?: string;
+  description?: string;
+  required?: boolean;
+};
+
+export type NodeDefinitionOutput = NodeDefinitionInput;
+
 export interface NodeDefinition {
   type: string;
   name: string;
@@ -14,6 +24,9 @@ export interface NodeDefinition {
   color: string;
   description?: string;
   defaultConfig: Record<string, unknown>;
+  backendType?: string;
+  inputs?: NodeDefinitionInput[];
+  outputs?: NodeDefinitionOutput[];
 }
 
 export const NODE_CATEGORIES: NodeCategory[] = [
@@ -52,6 +65,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     color: CATEGORY_COLORS.Preprocessing,
     description: 'Clean and denoise document images',
     defaultConfig: { strength: 0.5 },
+    backendType: 'image-denoise',
   },
   {
     type: 'text-splitter',
@@ -137,7 +151,25 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
 ];
 
 export function getNodeDefinition(type: string): NodeDefinition | undefined {
-  return NODE_DEFINITIONS.find((definition) => definition.type === type);
+  const staticDefinition = NODE_DEFINITIONS.find((definition) => definition.type === type);
+  if (staticDefinition) {
+    return staticDefinition;
+  }
+
+  if (type === 'image-denoise') {
+    return {
+      type,
+      name: 'Image Denoise',
+      category: 'Preprocessing',
+      icon: '🧼',
+      color: CATEGORY_COLORS.Preprocessing,
+      description: 'Reduce noise in an image using the backend node',
+      defaultConfig: { method: 'pil-median', max_file_size_mb: 50 },
+      backendType: type,
+    };
+  }
+
+  return undefined;
 }
 
 export function getNodesByCategory(): Record<NodeCategory, NodeDefinition[]> {
