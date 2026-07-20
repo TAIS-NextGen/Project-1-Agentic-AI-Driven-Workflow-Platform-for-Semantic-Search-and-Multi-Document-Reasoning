@@ -134,6 +134,24 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     description: 'Branch based on a condition',
     defaultConfig: { expression: '' },
   },
+  {
+    type: 'file-converter',
+    name: 'File Converter',
+    category: 'Preprocessing',
+    icon: '🔄',
+    color: CATEGORY_COLORS.Preprocessing,
+    description: 'Convert DOCX/PPTX/images to PDF, or extract plain text from DOCX',
+    defaultConfig: { file_id: '', output_mode: 'pdf' },
+  },
+  {
+    type: 'watermark-remover',
+    name: 'Watermark Remover',
+    category: 'Preprocessing',
+    icon: '🧽',
+    color: CATEGORY_COLORS.Preprocessing,
+    description: 'Remove watermarks.',
+    defaultConfig: { inpaint_radius: 3 },
+  },
 ];
 
 export function getNodeDefinition(type: string): NodeDefinition | undefined {

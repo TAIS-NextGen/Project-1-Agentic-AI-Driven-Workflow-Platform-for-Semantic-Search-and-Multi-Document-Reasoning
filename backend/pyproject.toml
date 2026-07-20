@@ -10,6 +10,7 @@ dependencies = [
     "pydantic-settings>=2.0.0",
     "python-multipart>=0.0.12",
     "aiofiles>=24.0.0",
+    "dateparser>=1.4.1",
 ]
 
 [project.optional-dependencies]
@@ -37,8 +38,20 @@ vector = [
 structure = [
     "unstructured[image,pdf]>=0.16.0",
 ]
+translation = [
+    "argostranslate>=1.9.6",
+]
+conversion = [
+    "python-docx>=1.1.0",
+    "Pillow>=10.0.0",
+]
+watermark = [
+    "PyMuPDF>=1.24.0",
+    "opencv-python-headless>=4.9.0",
+    "numpy>=1.26.0",
+]
 all = [
-    "sympact-backend[dev,ocr,llm,vector,structure]",
+    "sympact-backend[dev,ocr,llm,vector,structure,translation,conversion,watermark]",
 ]
 
 [tool.ruff]

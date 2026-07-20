@@ -55,3 +55,75 @@ class OCRService:
 
     async def detect_orientation(self, image_path: str | Path) -> dict[str, Any]:
         return {"angle": 0, "confidence": 1.0}
+class TesseractOCRService:
+    """Printed-text OCR using Tesseract — fast, no GPU, good first-pass
+    baseline for typed/scanned documents (as opposed to handwriting)."""
+
+    def __init__(self, lang: str = "eng"):
+        self.lang = lang
+
+    async def extract_text(
+        self, image_path: str | Path, lang: str | None = None
+    ) -> dict[str, Any]:
+        import pytesseract
+        from PIL import Image
+
+        active_lang = lang or self.lang
+        image = Image.open(image_path)
+
+        data = pytesseract.image_to_data(
+            image, lang=active_lang, output_type=pytesseract.Output.DICT
+        )
+
+        lines: list[dict[str, Any]] = []
+        for i, text in enumerate(data["text"]):
+            text = text.strip()
+            if not text:
+                continue
+            conf_raw = data["conf"][i]
+            confidence = float(conf_raw) / 100 if conf_raw not in ("-1", -1) else 0.0
+            lines.append({"text": text, "confidence": round(confidence, 4)})
+
+        full_text = " ".join(l["text"] for l in lines)
+        avg_conf = (
+            round(sum(l["confidence"] for l in lines) / len(lines), 4)
+            if lines
+            else 0.0
+        )
+
+        return {
+            "text": full_text,
+            "confidence": avg_conf,
+            "lines": lines,
+            "total_lines": len(lines),
+        }
+
+    async def extract_text_from_pdf(
+        self, pdf_path: str | Path, lang: str | None = None, dpi: int = 300
+    ) -> dict[str, Any]:
+        from pdf2image import convert_from_path
+
+        pages = convert_from_path(str(pdf_path), dpi=dpi)
+        all_lines: list[dict[str, Any]] = []
+        page_texts: list[str] = []
+
+        for page_image in pages:
+            page_image.save("/tmp/_tesseract_page_tmp.png")
+            page_result = await self.extract_text("/tmp/_tesseract_page_tmp.png", lang)
+            page_texts.append(page_result["text"])
+            all_lines.extend(page_result["lines"])
+
+        full_text = "\n\n".join(page_texts)
+        avg_conf = (
+            round(sum(l["confidence"] for l in all_lines) / len(all_lines), 4)
+            if all_lines
+            else 0.0
+        )
+
+        return {
+            "text": full_text,
+            "confidence": avg_conf,
+            "lines": all_lines,
+            "total_lines": len(all_lines),
+            "total_pages": len(pages),
+        }

@@ -33,3 +33,4 @@ Thumbs.db
 backend/data/
 *.db
 data/
+frontend/.vite/
