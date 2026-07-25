@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     llm_api_key: str = ""
     llm_default_model: str = "gpt-4o"
+    llm_base_url: str = "http://localhost:11434/v1"
 
     vector_db_url: str = ""
     vector_db_collection: str = "sympact"

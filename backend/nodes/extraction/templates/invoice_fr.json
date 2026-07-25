@@ -1,56 +1,45 @@
 {
   "name": "invoice_fr",
-  "description": "Extraire les données d'une facture",
+  "description": "Extraire les donnees d'une facture",
   "language": "fr",
-  "patterns": [
+  "fields": [
     {
-      "name": "numero_facture",
-      "pattern": "(?:N[°o]|Num[eé]ro|Facture)\\s*:?\\s*(\\w+[-\\/]?\\d+)",
-      "group": 1,
-      "mode": "first",
-      "category": "invoice",
-      "required": true,
-      "context_before": "(?:N[°o]|Num[eé]ro|Facture)"
-    },
-    {
-      "name": "date",
-      "pattern": "\\d{2}[/-]\\d{2}[/-]\\d{4}",
-      "mode": "first",
-      "category": "dates",
-      "required": true,
-      "context_before": "(?:Date|du|au)"
-    },
-    {
-      "name": "montant",
-      "pattern": "(\\d[\\d\\s]*[.,]?\\d*)\\s*(?:DT|€|EUR|TND|TTC)",
-      "group": 1,
-      "mode": "first",
-      "category": "financial",
+      "key": "numero_facture",
+      "label": "Numero de facture",
+      "description": "Numero ou reference de la facture (ex: FAC-2024-001, INV-1234, F2024-156)",
       "required": true
     },
     {
-      "name": "tva",
-      "pattern": "(?:TVA|T\\.V\\.A)\\s*:?\\s*(\\d[\\d\\s]*[.,]?\\d*)",
-      "group": 1,
-      "mode": "first",
-      "category": "financial",
+      "key": "date",
+      "label": "Date de facturation",
+      "description": "Date d'emission de la facture. Normaliser en YYYY-MM-DD.",
+      "required": true
+    },
+    {
+      "key": "montant",
+      "label": "Montant total",
+      "description": "Montant total TTC en DT, EUR ou TND. Chiffre uniquement sans devise.",
+      "type": "number",
+      "required": true
+    },
+    {
+      "key": "tva",
+      "label": "TVA",
+      "description": "Taux ou montant de la TVA mentionne",
+      "type": "number",
       "required": false
     },
     {
-      "name": "fournisseur",
-      "pattern": "(?:Fournisseur|Soci[eé]t[eé]|Raison sociale)\\s*:?\\s*([\\w\\s]{3,40})",
-      "group": 1,
-      "mode": "first",
-      "category": "entity",
-      "required": false
+      "key": "fournisseur",
+      "label": "Nom du fournisseur",
+      "description": "Nom de la societe ou du fournisseur qui emet la facture",
+      "required": true
     },
     {
-      "name": "client",
-      "pattern": "(?:Client|Acheteur|Destinataire)\\s*:?\\s*([\\w\\s]{3,40})",
-      "group": 1,
-      "mode": "first",
-      "category": "entity",
-      "required": false
+      "key": "client",
+      "label": "Nom du client",
+      "description": "Nom du client ou de l'acheteur destine a recevoir la facture",
+      "required": true
     }
   ]
 }

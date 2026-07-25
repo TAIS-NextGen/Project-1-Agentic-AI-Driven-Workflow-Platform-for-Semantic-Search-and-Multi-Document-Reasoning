@@ -2,48 +2,43 @@
   "name": "invoice_ar",
   "description": "استخراج بيانات الفاتورة",
   "language": "ar",
-  "patterns": [
+  "fields": [
     {
-      "name": "رقم الفاتورة",
-      "pattern": "(?:رقم|عدد|N[°o])\\s*:?\\s*(\\d+)",
-      "group": 1,
-      "mode": "first",
-      "category": "invoice",
-      "required": true,
-      "context_before": "(?:رقم|عدد|فاتورة|Facture|N[°o])",
-      "validators": {"min_length": 3}
+      "key": "invoice_number",
+      "label": "رقم الفاتورة",
+      "description": "رقم الفاتورة او مرجعها (مثال: فاتورة رقم 1234، FAC-2024-001)",
+      "required": true
     },
     {
-      "name": "التاريخ",
-      "pattern": "\\d{2}[/-]\\d{2}[/-]\\d{4}",
-      "mode": "first",
-      "category": "dates",
-      "required": true,
-      "context_before": "(?:تاريخ|Date|في)"
+      "key": "date",
+      "label": "التاريخ",
+      "description": "تاريخ اصدار الفاتورة. تنسيق YYYY-MM-DD.",
+      "required": true
     },
     {
-      "name": "المبلغ",
-      "pattern": "(\\d[\\d\\s]*[.,]?\\d*)\\s*(?:DT|د\\.ت|دينار|TND)",
-      "group": 1,
-      "mode": "first",
-      "category": "financial",
-      "required": true,
-      "validators": {"min_length": 1}
+      "key": "amount",
+      "label": "المبلغ",
+      "description": "المبلغ الاجمالي بالدينار التونسي او العملة المحلية. الرقم فقط بدون عملة.",
+      "type": "number",
+      "required": true
     },
     {
-      "name": "الضريبة",
-      "pattern": "(?:TVA|T\\.V\\.A|ضريبة|أداء)\\s*:?\\s*(\\d[\\d\\s]*[.,]?\\d*)",
-      "group": 1,
-      "mode": "first",
-      "category": "financial",
+      "key": "tax",
+      "label": "الضريبة",
+      "description": "مبلغ الضريبة او الاداء على القيمة المضافة (TVA)",
+      "type": "number",
       "required": false
     },
     {
-      "name": "المورد",
-      "pattern": "(?:مورد|Fournisseur|شركة|مؤسسة)\\s*:?\\s*([\\u0600-\\u06FF\\w\\s]{3,40})",
-      "group": 1,
-      "mode": "first",
-      "category": "entity",
+      "key": "supplier",
+      "label": "المورد",
+      "description": "اسم الشركة او المؤسسة الموردة",
+      "required": false
+    },
+    {
+      "key": "client",
+      "label": "العميل",
+      "description": "اسم العميل او المشتري",
       "required": false
     }
   ]
