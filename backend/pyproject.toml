@@ -34,8 +34,11 @@ vector = [
     "qdrant-client>=1.9.0",
     "chromadb>=0.5.0",
 ]
+structure = [
+    "unstructured[image,pdf]>=0.16.0",
+]
 all = [
-    "sympact-backend[dev,ocr,llm,vector]",
+    "sympact-backend[dev,ocr,llm,vector,structure]",
 ]
 
 [tool.ruff]
