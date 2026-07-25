@@ -32,3 +32,4 @@ Thumbs.db
 # Backend runtime files
 backend/data/
 *.db
+data/

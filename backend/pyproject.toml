@@ -48,6 +48,9 @@ select = ["E", "F", "I", "N", "W"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 
+[tool.hatch.build.targets.wheel]
+packages = ["backend"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
