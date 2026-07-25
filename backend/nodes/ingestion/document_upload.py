@@ -151,6 +151,7 @@ class DocumentUploadNode(BaseNode):
                 "id": document_id,
                 "filename": original_name,
                 "file_path": stored_path,
+                "path": stored_path,
                 "mime_type": mime_type,
                 "size_bytes": size_bytes,
                 "extension": ext,

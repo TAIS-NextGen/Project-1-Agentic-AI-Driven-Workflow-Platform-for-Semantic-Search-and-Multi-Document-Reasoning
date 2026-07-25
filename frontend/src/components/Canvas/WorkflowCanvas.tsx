@@ -1,7 +1,8 @@
-import { useState, useRef, type MouseEvent } from 'react';
+import { useEffect, useState, useRef, type MouseEvent } from 'react';
 import { useFlowStore } from '../../store/flowStore';
-import { NODE_DEFINITIONS } from '../../config/nodeDefinitions';
+import { NODE_DEFINITIONS, getNodeDefinition, type NodeDefinition } from '../../config/nodeDefinitions';
 import { NodeConfigPanel } from '../ConfigPanel/NodeConfigPanel';
+import { fetchBackendNodeDefinitions } from '../../services/backendApi';
 import styles from './WorkflowCanvas.module.css';
 
 interface WorkflowCanvasProps {
@@ -27,8 +28,8 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [nodeSearch, setNodeSearch] = useState('');
-  
-  // Connection states
+  const [backendNodes, setBackendNodes] = useState<NodeDefinition[]>([]);
+
   const [connectionSource, setConnectionSource] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -37,18 +38,36 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const draggedNodeRef = useRef<{ id: string; startX: number; startY: number } | null>(null);
 
-  // Handle Dragging Nodes
+  useEffect(() => {
+    let mounted = true;
+    fetchBackendNodeDefinitions()
+      .then((definitions) => {
+        if (mounted) {
+          setBackendNodes(definitions);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setBackendNodes([]);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const mergedNodes = [...NODE_DEFINITIONS, ...backendNodes.filter((nodeDefinition) => !NODE_DEFINITIONS.some((existing) => existing.type === nodeDefinition.type))];
+
   const handleNodeMouseDown = (e: MouseEvent, nodeId: string) => {
     if (e.target instanceof HTMLButtonElement || (e.target as HTMLElement).closest('.' + styles.port)) {
-      return; // Ignore ports or buttons
+      return;
     }
     e.stopPropagation();
     selectNode(nodeId);
-    
+
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
 
-    // Convert client coordinates to zoom space
     draggedNodeRef.current = {
       id: nodeId,
       startX: e.clientX / viewport.zoom - node.position.x,
@@ -57,7 +76,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
   };
 
   const handleCanvasMouseMove = (e: MouseEvent) => {
-    // 1. Handle Node Dragging
     if (draggedNodeRef.current) {
       const { id, startX, startY } = draggedNodeRef.current;
       const x = Math.round(e.clientX / viewport.zoom - startX);
@@ -66,7 +84,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
       return;
     }
 
-    // 2. Handle Connection Drawing
     if (connectionSource && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
       setMousePos({
@@ -76,7 +93,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
       return;
     }
 
-    // 3. Handle Canvas Panning
     if (isPanning) {
       setViewport({
         x: e.clientX - panStart.x,
@@ -92,7 +108,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
     setConnectionSource(null);
   };
 
-  // Canvas Panning start
   const handleCanvasMouseDown = (e: MouseEvent) => {
     if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains(styles.gridLayer)) {
       setIsPanning(true);
@@ -103,21 +118,19 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
     }
   };
 
-  // Start Connection
   const handlePortMouseDown = (e: MouseEvent, nodeId: string) => {
     e.stopPropagation();
     setConnectionSource(nodeId);
-    
+
     const node = nodes.find(n => n.id === nodeId);
     if (connectionSource && canvasRef.current) {
       setMousePos({
-        x: node!.position.x + 180, // Approximate port position (right side)
+        x: node!.position.x + 180,
         y: node!.position.y + 35,
       });
     }
   };
 
-  // End Connection
   const handlePortMouseUp = (e: MouseEvent, targetNodeId: string) => {
     e.stopPropagation();
     if (connectionSource && connectionSource !== targetNodeId) {
@@ -126,7 +139,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
     setConnectionSource(null);
   };
 
-  // Zoom Operations
   const handleZoom = (factor: number) => {
     setViewport({
       ...viewport,
@@ -134,9 +146,8 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
     });
   };
 
-  // Group nodes by category
-  const categories = Array.from(new Set(NODE_DEFINITIONS.map(n => n.category)));
-  const filteredNodes = NODE_DEFINITIONS.filter(
+  const categories = Array.from(new Set(mergedNodes.map(n => n.category)));
+  const filteredNodes = mergedNodes.filter(
     n =>
       n.name.toLowerCase().includes(nodeSearch.toLowerCase()) &&
       (!activeCategory || n.category === activeCategory)
@@ -144,7 +155,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
 
   return (
     <div className={styles.wrapper}>
-      {/* Left Sidebar - Nodes list */}
       <aside className={styles.leftSidebar}>
         <div className={styles.sidebarHeader}>
           <h3>Nodes</h3>
@@ -156,8 +166,7 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
             className={styles.nodeSearchInput}
           />
         </div>
-        
-        {/* Category pills */}
+
         <div className={styles.categoryPills}>
           <button
             className={`${styles.pill} ${!activeCategory ? styles.pillActive : ''}`}
@@ -176,7 +185,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
           ))}
         </div>
 
-        {/* Dynamic node cards list */}
         <div className={styles.nodeList}>
           {filteredNodes.map(def => (
             <div
@@ -197,7 +205,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
           ))}
         </div>
 
-        {/* Templates quick loader */}
         <div className={styles.templatesBlock}>
           <h4>Load Template</h4>
           <div className={styles.templateButtons}>
@@ -208,9 +215,7 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
         </div>
       </aside>
 
-      {/* Main Canvas Editor Area */}
       <div className={styles.editorArea}>
-        {/* Top toolbar */}
         <header className={styles.toolbar}>
           <div className={styles.wfNameBlock}>
             <h2>Invoice Processing Pipeline</h2>
@@ -228,7 +233,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
           </div>
         </header>
 
-        {/* Grid Canvas container */}
         <div
           ref={canvasRef}
           className={styles.canvasContainer}
@@ -236,7 +240,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
           onMouseUp={handleCanvasMouseUp}
           onMouseDown={handleCanvasMouseDown}
         >
-          {/* SVG Overlay layer for connection wires */}
           <svg
             className={styles.svgOverlay}
             style={{
@@ -244,20 +247,17 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
               transformOrigin: '0 0',
             }}
           >
-            {/* Draw existing connections */}
             {edges.map((edge) => {
               const srcNode = nodes.find(n => n.id === edge.source);
               const tgtNode = nodes.find(n => n.id === edge.target);
-              
+
               if (!srcNode || !tgtNode) return null;
 
-              // Calculate connection path points
-              const x1 = srcNode.position.x + 200; // Output port (right edge)
-              const y1 = srcNode.position.y + 35;  // Middle height
-              const x2 = tgtNode.position.x;       // Input port (left edge)
+              const x1 = srcNode.position.x + 200;
+              const y1 = srcNode.position.y + 35;
+              const x2 = tgtNode.position.x;
               const y2 = tgtNode.position.y + 35;
 
-              // Bezier control coordinates
               const cx1 = x1 + Math.abs(x2 - x1) * 0.4;
               const cy1 = y1;
               const cx2 = x2 - Math.abs(x2 - x1) * 0.4;
@@ -269,7 +269,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
                     d={`M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`}
                     className={styles.wire}
                   />
-                  {/* Small trigger line to allow deleting connection */}
                   <path
                     d={`M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`}
                     className={styles.wireHotspot}
@@ -280,7 +279,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
               );
             })}
 
-            {/* Connection Preview Wire */}
             {connectionSource && (
               (() => {
                 const srcNode = nodes.find(n => n.id === connectionSource);
@@ -293,7 +291,7 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
                 const cy1 = y1;
                 const cx2 = x2 - Math.abs(x2 - x1) * 0.4;
                 const cy2 = y2;
-                
+
                 return (
                   <path
                     d={`M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`}
@@ -304,7 +302,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
             )}
           </svg>
 
-          {/* Interactive node elements layer */}
           <div
             className={styles.gridLayer}
             style={{
@@ -315,9 +312,9 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
             }}
           >
             {nodes.map((node) => {
-              const definition = NODE_DEFINITIONS.find(def => def.type === node.type);
+              const definition = getNodeDefinition(node.type);
               const isSelected = selectedNodeId === node.id;
-              
+
               if (!definition) return null;
 
               return (
@@ -332,7 +329,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
                   }}
                   onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
                 >
-                  {/* Left Input Port */}
                   <div
                     className={`${styles.port} ${styles.portInput}`}
                     onMouseUp={(e) => handlePortMouseUp(e, node.id)}
@@ -341,7 +337,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
                     <span className={styles.portDot}></span>
                   </div>
 
-                  {/* Right Output Port */}
                   <div
                     className={`${styles.port} ${styles.portOutput}`}
                     onMouseDown={(e) => handlePortMouseDown(e, node.id)}
@@ -367,7 +362,7 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
                       ×
                     </button>
                   </div>
-                  
+
                   <div className={styles.nodeContent}>
                     <span className={`${styles.nodeStatusBadge} ${styles[node.status]}`}>
                       {node.status}
@@ -379,7 +374,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
           </div>
         </div>
 
-        {/* Floating zoom controls */}
         <div className={styles.viewportControls}>
           <button onClick={() => handleZoom(1.25)} title="Zoom In">+</button>
           <span>{Math.round(viewport.zoom * 100)}%</span>
@@ -388,7 +382,6 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
         </div>
       </div>
 
-      {/* Right Sidebar - Config fields */}
       {selectedNodeId && <NodeConfigPanel />}
     </div>
   );
