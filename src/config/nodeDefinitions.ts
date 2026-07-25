@@ -1,1 +1,0 @@
-//Declares meta-information, configuration schemas, parameters, and default values for each node type (e.g., what parameters an LLMNode has)

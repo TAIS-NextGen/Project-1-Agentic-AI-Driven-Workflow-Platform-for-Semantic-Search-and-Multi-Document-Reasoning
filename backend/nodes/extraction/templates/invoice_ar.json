@@ -1,0 +1,45 @@
+{
+  "name": "invoice_ar",
+  "description": "استخراج بيانات الفاتورة",
+  "language": "ar",
+  "fields": [
+    {
+      "key": "invoice_number",
+      "label": "رقم الفاتورة",
+      "description": "رقم الفاتورة او مرجعها (مثال: فاتورة رقم 1234، FAC-2024-001)",
+      "required": true
+    },
+    {
+      "key": "date",
+      "label": "التاريخ",
+      "description": "تاريخ اصدار الفاتورة. تنسيق YYYY-MM-DD.",
+      "required": true
+    },
+    {
+      "key": "amount",
+      "label": "المبلغ",
+      "description": "المبلغ الاجمالي بالدينار التونسي او العملة المحلية. الرقم فقط بدون عملة.",
+      "type": "number",
+      "required": true
+    },
+    {
+      "key": "tax",
+      "label": "الضريبة",
+      "description": "مبلغ الضريبة او الاداء على القيمة المضافة (TVA)",
+      "type": "number",
+      "required": false
+    },
+    {
+      "key": "supplier",
+      "label": "المورد",
+      "description": "اسم الشركة او المؤسسة الموردة",
+      "required": false
+    },
+    {
+      "key": "client",
+      "label": "العميل",
+      "description": "اسم العميل او المشتري",
+      "required": false
+    }
+  ]
+}

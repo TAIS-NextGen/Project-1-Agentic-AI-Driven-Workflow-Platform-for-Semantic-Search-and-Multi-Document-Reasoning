@@ -1,0 +1,50 @@
+{
+  "name": "generic",
+  "description": "Extract common fields from any document",
+  "language": "any",
+  "fields": [
+    {
+      "key": "phone",
+      "label": "Phone",
+      "description": "Phone number in any format (Tunisian, French, international)",
+      "required": false
+    },
+    {
+      "key": "email",
+      "label": "Email",
+      "description": "Email address",
+      "required": false
+    },
+    {
+      "key": "date",
+      "label": "Date",
+      "description": "Any date mentioned in the document. Normalize to YYYY-MM-DD.",
+      "required": false
+    },
+    {
+      "key": "amount",
+      "label": "Amount",
+      "description": "Monetary amount in DT, EUR, TND, or USD. Just the number, no currency.",
+      "type": "number",
+      "required": false
+    },
+    {
+      "key": "cin",
+      "label": "CIN",
+      "description": "Tunisian national ID number (8 digits)",
+      "required": false
+    },
+    {
+      "key": "name",
+      "label": "Full Name",
+      "description": "Person's full name mentioned in the document",
+      "required": false
+    },
+    {
+      "key": "address",
+      "label": "Address",
+      "description": "Physical address (street, city, postal code)",
+      "required": false
+    }
+  ]
+}

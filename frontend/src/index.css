@@ -1,0 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  /* Deep Futuristic Colors */
+  --bg-deep: #07080e;
+  --bg-darker: #0c0e16;
+  --bg-dark: #121624;
+  --bg-card: rgba(22, 28, 45, 0.45);
+  --bg-card-hover: rgba(30, 38, 60, 0.6);
+  --border-glow: rgba(99, 102, 241, 0.15);
+  --border-glow-hover: rgba(99, 102, 241, 0.35);
+  
+  /* Text colors */
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --text-dim: #6b7280;
+
+  /* Accent Glows (HSL for transparency support) */
+  --color-primary: 239, 84%, 67%; /* #6366f1 Indigo */
+  --color-success: 142, 71%, 45%; /* #22c55e Green */
+  --color-warning: 37, 98%, 53%;  /* #f97316 Orange */
+  --color-danger: 350, 89%, 60%;  /* #ef4444 Red */
+  --color-info: 199, 89%, 48%;    /* #0ea5e9 Sky */
+  --color-purple: 271, 91%, 65%;  /* #a855f7 Purple */
+  --color-pink: 330, 81%, 60%;    /* #ec4899 Pink */
+
+  /* Glassmorphism settings */
+  --glass-blur: blur(12px) saturate(120%);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.05);
+  --glass-border-hover: 1px solid rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
+  /* Categories Colors */
+  --cat-preprocessing: #06b6d4;
+  --cat-ocr: #f97316;
+  --cat-rag: #a855f7;
+  --cat-extraction: #ec4899;
+  --cat-export: #eab308;
+  --cat-logic: #3b82f6;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background-color: var(--bg-deep);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsla(var(--color-primary), 0.5);
+}
+
+/* Interactive & Animations */
+@keyframes float {
+  0% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(1deg); }
+  100% { transform: translateY(0px) rotate(0deg); }
+}
+
+@keyframes pulse-glow {
+  0% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); }
+  50% { box-shadow: 0 0 25px rgba(99, 102, 241, 0.4); }
+  100% { box-shadow: 0 0 15px rgba(99, 102, 241, 0.2); }
+}
+
+@keyframes text-shine {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+@keyframes border-glow-anim {
+  0% { border-color: rgba(99, 102, 241, 0.15); }
+  50% { border-color: rgba(99, 102, 241, 0.4); }
+  100% { border-color: rgba(99, 102, 241, 0.15); }
+}
+
+/* Glassmorphism card utility */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: 12px;
+  box-shadow: var(--glass-shadow);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  background: var(--bg-card-hover);
+  border: var(--glass-border-hover);
+  box-shadow: 0 8px 36px 0 rgba(99, 102, 241, 0.15);
+}
+
+/* Premium Gradient Button */
+.btn-premium {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, hsl(var(--color-primary)) 0%, hsl(var(--color-purple)) 100%);
+  color: #ffffff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+  filter: brightness(1.1);
+}
+
+.btn-premium:active {
+  transform: translateY(0);
+}
+
+/* Dark secondary button */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
