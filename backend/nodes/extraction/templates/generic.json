@@ -1,0 +1,63 @@
+{
+  "name": "generic",
+  "description": "Extract common fields (generic document)",
+  "language": "any",
+  "patterns": [
+    {
+      "name": "phone",
+      "pattern": "(?:\\+|00)?(?:216|33|1)?\\s?\\d{2}\\s?\\d{3}\\s?\\d{3}",
+      "mode": "first",
+      "category": "contact",
+      "required": false,
+      "context_before": "(?:T[eé]l|Tel|Phone|GSM|Portable|هاتف|جوال)"
+    },
+    {
+      "name": "email",
+      "pattern": "[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\\.[a-zA-Z0-9-.]+",
+      "mode": "first",
+      "category": "contact",
+      "required": false
+    },
+    {
+      "name": "date",
+      "pattern": "\\d{2}[/-]\\d{2}[/-]\\d{4}",
+      "mode": "first",
+      "category": "dates",
+      "required": false,
+      "context_before": "(?:Date|تاريخ|le|du|au|في)"
+    },
+    {
+      "name": "amount",
+      "pattern": "(\\d[\\d\\s]*[.,]?\\d*)\\s*(?:DT|€|EUR|TND|د\\.ت|دينار|\\.د)",
+      "group": 1,
+      "mode": "first",
+      "category": "financial",
+      "required": false
+    },
+    {
+      "name": "cin",
+      "pattern": "\\b\\d{8}\\b",
+      "mode": "first",
+      "category": "identity",
+      "required": false,
+      "context_before": "(?:CIN|C\\.I\\.N|بطاقة|رقم بطاقة|N[°o]\\s*CIN)",
+      "validators": {"exact_length": 8}
+    },
+    {
+      "name": "name",
+      "pattern": "(?:Nom|Name|إسم|الاسم|الاسم الكامل)\\s*:?\\s*([\\u0600-\\u06FF\\w\\s]{2,30})",
+      "group": 1,
+      "mode": "first",
+      "category": "identity",
+      "required": false
+    },
+    {
+      "name": "address",
+      "pattern": "(?:Adresse|Address|عنوان)\\s*:?\\s*([\\u0600-\\u06FF\\w\\s,]{5,80})",
+      "group": 1,
+      "mode": "first",
+      "category": "contact",
+      "required": false
+    }
+  ]
+}

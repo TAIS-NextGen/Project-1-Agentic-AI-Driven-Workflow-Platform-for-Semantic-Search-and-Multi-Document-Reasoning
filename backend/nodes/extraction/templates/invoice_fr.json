@@ -1,0 +1,56 @@
+{
+  "name": "invoice_fr",
+  "description": "Extraire les données d'une facture",
+  "language": "fr",
+  "patterns": [
+    {
+      "name": "numero_facture",
+      "pattern": "(?:N[°o]|Num[eé]ro|Facture)\\s*:?\\s*(\\w+[-\\/]?\\d+)",
+      "group": 1,
+      "mode": "first",
+      "category": "invoice",
+      "required": true,
+      "context_before": "(?:N[°o]|Num[eé]ro|Facture)"
+    },
+    {
+      "name": "date",
+      "pattern": "\\d{2}[/-]\\d{2}[/-]\\d{4}",
+      "mode": "first",
+      "category": "dates",
+      "required": true,
+      "context_before": "(?:Date|du|au)"
+    },
+    {
+      "name": "montant",
+      "pattern": "(\\d[\\d\\s]*[.,]?\\d*)\\s*(?:DT|€|EUR|TND|TTC)",
+      "group": 1,
+      "mode": "first",
+      "category": "financial",
+      "required": true
+    },
+    {
+      "name": "tva",
+      "pattern": "(?:TVA|T\\.V\\.A)\\s*:?\\s*(\\d[\\d\\s]*[.,]?\\d*)",
+      "group": 1,
+      "mode": "first",
+      "category": "financial",
+      "required": false
+    },
+    {
+      "name": "fournisseur",
+      "pattern": "(?:Fournisseur|Soci[eé]t[eé]|Raison sociale)\\s*:?\\s*([\\w\\s]{3,40})",
+      "group": 1,
+      "mode": "first",
+      "category": "entity",
+      "required": false
+    },
+    {
+      "name": "client",
+      "pattern": "(?:Client|Acheteur|Destinataire)\\s*:?\\s*([\\w\\s]{3,40})",
+      "group": 1,
+      "mode": "first",
+      "category": "entity",
+      "required": false
+    }
+  ]
+}
