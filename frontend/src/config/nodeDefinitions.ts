@@ -176,6 +176,33 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     description: 'Remove watermarks.',
     defaultConfig: { inpaint_radius: 3 },
   },
+   {
+    type: 'ocr-node',
+    name: 'OCR Node',
+    category: 'OCR',
+    icon: '📄',
+    color: CATEGORY_COLORS.OCR,
+    description: 'Convert printed/scanned images or PDFs to text using Tesseract',
+    defaultConfig: { file_id: '', language: 'eng', dpi: 300 },
+  },
+  {
+    type: 'table-extractor',
+    name: 'Table Extractor',
+    category: 'Extraction',
+    icon: '📊',
+    color: CATEGORY_COLORS.Extraction,
+    description: 'Detect tables in a page/region and extract row/column structure',
+    defaultConfig: { file_id: '', confidence_threshold: 0.7 },
+  },
+{
+    type: 'text-cleaner',
+    name: 'Text Cleaner',
+    category: 'Preprocessing',
+    icon: '🧹',
+    color: CATEGORY_COLORS.Preprocessing,
+    description: 'Clean and normalize raw text: whitespace, hyphenation, casing, dates',
+    defaultConfig: { file_id: '', normalize_dates: false, normalize_casing: '' },
+  },
 ];
 
 export function getNodeDefinition(type: string): NodeDefinition | undefined {
