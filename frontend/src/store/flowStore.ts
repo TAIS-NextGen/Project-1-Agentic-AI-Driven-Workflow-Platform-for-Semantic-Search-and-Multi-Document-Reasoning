@@ -18,7 +18,7 @@ interface FlowStore {
   deleteNode: (id: string) => void;
   selectNode: (id: string | null) => void;
   
-  connectNodes: (sourceId: string, targetId: string) => void;
+  connectNodes: (sourceId: string, sourcePort: string, targetId: string, targetPort: string) => void;
   deleteEdge: (id: string) => void;
   
   setViewport: (viewport: { x: number; y: number; zoom: number }) => void;
@@ -29,14 +29,14 @@ interface FlowStore {
 const DEFAULT_NODES: FlowNode[] = [
   {
     id: 'node-1',
-    type: 'document-input',
+    type: 'document-upload',
     position: { x: 100, y: 200 },
     config: {},
     status: 'success',
   },
   {
     id: 'node-2',
-    type: 'ocr',
+    type: 'ocr-node',
     position: { x: 300, y: 200 },
     config: { language: 'en' },
     status: 'ready',
@@ -132,10 +132,10 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
 
   selectNode: (id) => set({ selectedNodeId: id }),
 
-  connectNodes: (sourceId, targetId) => {
+  connectNodes: (sourceId, sourcePort, targetId, targetPort) => {
     // Prevent duplicate edges or self loops
     const exists = get().edges.some(
-      (edge) => edge.source === sourceId && edge.target === targetId
+      (edge) => edge.source === sourceId && edge.target === targetId && edge.sourcePort === sourcePort && edge.targetPort === targetPort
     );
     if (exists || sourceId === targetId) return;
 
@@ -143,6 +143,8 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
       id: generateId('edge'),
       source: sourceId,
       target: targetId,
+      sourcePort,
+      targetPort,
     };
 
     set((state) => ({
@@ -173,14 +175,14 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
         nodes: [
           {
             id: 'n1',
-            type: 'document-input',
+            type: 'document-upload',
             position: { x: 100, y: 200 },
             config: {},
             status: 'success',
           },
           {
             id: 'n2',
-            type: 'ocr',
+            type: 'ocr-node',
             position: { x: 300, y: 200 },
             config: { language: 'fr' },
             status: 'success',
@@ -212,7 +214,7 @@ export const useFlowStore = create<FlowStore>((set, get) => ({
         nodes: [
           {
             id: 'r1',
-            type: 'document-input',
+            type: 'document-upload',
             position: { x: 100, y: 150 },
             config: {},
             status: 'success',

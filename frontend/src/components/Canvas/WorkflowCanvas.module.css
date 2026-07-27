@@ -13,6 +13,7 @@
   flex-direction: column;
   background: rgba(22, 28, 45, 0.25);
   backdrop-filter: blur(12px);
+  overflow: hidden;
 }
 
 .sidebarHeader {
@@ -68,6 +69,7 @@
 
 .nodeList {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 20px 24px;
   display: flex;
@@ -252,6 +254,15 @@
 .wireGroup:hover .wire {
   stroke: hsl(var(--color-primary)) !important;
   stroke-width: 3px;
+}
+
+.wireSelected .wire {
+  stroke: hsl(var(--color-primary)) !important;
+  stroke-width: 3px;
+}
+
+.wireSelected .wireDeleteNode {
+  opacity: 1;
 }
 
 .wirePreview {

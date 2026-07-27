@@ -87,7 +87,7 @@ const mockExecutionResults = (nodes: any[]) => {
           }
         }
       };
-    } else if (node.type === 'document-upload' || node.type === 'document-input') {
+    } else if (node.type === 'document-upload') {
       results[node.id] = {
         status: 'success',
         outputs: {
@@ -99,7 +99,7 @@ const mockExecutionResults = (nodes: any[]) => {
           }
         }
       };
-    } else if (node.type === 'ocr') {
+    } else if (node.type === 'ocr-node') {
       results[node.id] = {
         status: 'success',
         outputs: {
@@ -205,14 +205,36 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         let sourcePort = e.sourcePort || 'output';
         let targetPort = e.targetPort || 'input';
 
-        if (sourceNode?.type === 'document-upload' || sourceNode?.type === 'document-input') {
+        if (sourceNode?.type === 'document-upload') {
           sourcePort = 'document';
         } else if (sourceNode?.type === 'denoising' || sourceNode?.type === 'image-denoise') {
           sourcePort = 'image';
+        } else if (sourceNode?.type === 'handwriting-ocr') {
+          sourcePort = 'text';
+        } else if (sourceNode?.type === 'regex-extractor') {
+          sourcePort = 'extracted';
+        } else if (sourceNode?.type === 'semantic-extractor') {
+          sourcePort = 'extracted';
+        } else if (sourceNode?.type === 'document-structure-analyzer') {
+          sourcePort = 'structure';
+        } else if (sourceNode?.type === 'gap-checker') {
+          sourcePort = 'report';
         }
 
-        if (targetNode?.type === 'denoising' || targetNode?.type === 'image-denoise') {
+        if (targetNode?.type === 'document-upload') {
+          targetPort = 'file';
+        } else if (targetNode?.type === 'denoising' || targetNode?.type === 'image-denoise') {
           targetPort = 'image';
+        } else if (targetNode?.type === 'handwriting-ocr') {
+          targetPort = 'image';
+        } else if (targetNode?.type === 'regex-extractor') {
+          targetPort = 'text';
+        } else if (targetNode?.type === 'semantic-extractor') {
+          targetPort = 'text';
+        } else if (targetNode?.type === 'document-structure-analyzer') {
+          targetPort = 'document';
+        } else if (targetNode?.type === 'gap-checker') {
+          targetPort = 'document';
         }
 
         return {
@@ -342,7 +364,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           const updateNodes = useFlowStore.getState().nodes;
           let status: 'success' | 'error' = 'success';
 
-          if (node.type === 'ocr' && Math.random() > 0.8) {
+          if (node.type === 'ocr-node' && Math.random() > 0.8) {
             get().addLog('warn', 'OCR', 'Low resolution image detected, fallback activated.');
           } else if (node.type === 'conditional' && node.config.expression === '') {
             get().addLog('error', 'CONDITIONAL', 'Expression is missing in conditional node!');

@@ -31,6 +31,10 @@ function normalizeCategory(category: string): NodeCategory {
   if (normalized.includes('rag') || normalized.includes('embed')) return 'RAG/Embeddings';
   if (normalized.includes('extract') || normalized.includes('logic')) return 'Extraction';
   if (normalized.includes('output') || normalized.includes('export')) return 'Export/Output';
+  if (normalized.includes('ingestion')) return 'Preprocessing';
+  if (normalized.includes('check')) return 'Preprocessing';
+  if (normalized.includes('normalization')) return 'Preprocessing';
+  if (normalized.includes('structure')) return 'Preprocessing';
   return 'Preprocessing';
 }
 

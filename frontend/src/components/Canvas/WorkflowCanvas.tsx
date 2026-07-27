@@ -21,6 +21,8 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
     connectNodes,
     deleteEdge,
     deleteNode,
+    setNodes,
+    setEdges,
     setViewport,
     loadTemplate,
     resetFlow
@@ -30,10 +32,22 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
   const [nodeSearch, setNodeSearch] = useState('');
   const [backendNodes, setBackendNodes] = useState<NodeDefinition[]>([]);
 
-  const [connectionSource, setConnectionSource] = useState<string | null>(null);
+  const [connectionSource, setConnectionSource] = useState<{ nodeId: string; portName: string } | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [selectAll, setSelectAll] = useState(false);
+  const [clipboard, setClipboard] = useState<{ type: string; config: Record<string, unknown> } | null>(null);
+  const [undoStack, setUndoStack] = useState<{ nodes: typeof nodes; edges: typeof edges }[]>([]);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+
+  const pushUndo = () => {
+    setUndoStack(prev => {
+      const next = [...prev, { nodes: [...nodes], edges: [...edges] }];
+      void undoStack;
+      return next.length > 50 ? next.slice(-50) : next;
+    });
+  };
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const draggedNodeRef = useRef<{ id: string; startX: number; startY: number } | null>(null);
@@ -63,11 +77,14 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
       return;
     }
     e.stopPropagation();
+    setSelectAll(false);
+    setSelectedEdgeId(null);
     selectNode(nodeId);
 
     const node = nodes.find(n => n.id === nodeId);
     if (!node) return;
 
+    pushUndo();
     draggedNodeRef.current = {
       id: nodeId,
       startX: e.clientX / viewport.zoom - node.position.x,
@@ -110,6 +127,8 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
 
   const handleCanvasMouseDown = (e: MouseEvent) => {
     if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains(styles.gridLayer)) {
+      setSelectAll(false);
+      setSelectedEdgeId(null);
       setIsPanning(true);
       setPanStart({
         x: e.clientX - viewport.x,
@@ -118,23 +137,28 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
     }
   };
 
-  const handlePortMouseDown = (e: MouseEvent, nodeId: string) => {
+  const handlePortMouseDown = (e: MouseEvent, nodeId: string, portName: string) => {
     e.stopPropagation();
-    setConnectionSource(nodeId);
+    setConnectionSource({ nodeId, portName });
 
     const node = nodes.find(n => n.id === nodeId);
-    if (connectionSource && canvasRef.current) {
+    if (canvasRef.current && node) {
+      const def = getNodeDefinition(node.type);
+      const outputPorts = def?.outputs || [];
+      const idx = outputPorts.findIndex(p => p.name === portName);
+      const portY = node.position.y + 35 + (idx >= 0 ? idx * 28 : 0);
       setMousePos({
-        x: node!.position.x + 180,
-        y: node!.position.y + 35,
+        x: node.position.x + 200,
+        y: portY,
       });
     }
   };
 
-  const handlePortMouseUp = (e: MouseEvent, targetNodeId: string) => {
+  const handlePortMouseUp = (e: MouseEvent, targetNodeId: string, targetPortName: string) => {
     e.stopPropagation();
-    if (connectionSource && connectionSource !== targetNodeId) {
-      connectNodes(connectionSource, targetNodeId);
+    if (connectionSource && connectionSource.nodeId !== targetNodeId) {
+      pushUndo();
+      connectNodes(connectionSource.nodeId, connectionSource.portName, targetNodeId, targetPortName);
     }
     setConnectionSource(null);
   };
@@ -144,6 +168,15 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
       ...viewport,
       zoom: Math.min(Math.max(viewport.zoom * factor, 0.5), 1.8),
     });
+  };
+
+  const getPortY = (nodeId: string, portName: string, isOutput: boolean) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (!node) return 0;
+    const def = getNodeDefinition(node.type);
+    const ports = isOutput ? (def?.outputs || []) : (def?.inputs || []);
+    const idx = ports.findIndex(p => p.name === portName);
+    return 35 + (idx >= 0 ? idx * 28 : 0);
   };
 
   const categories = Array.from(new Set(mergedNodes.map(n => n.category)));
@@ -190,10 +223,7 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
             <div
               key={def.type}
               className={styles.sidebarNodeCard}
-              onClick={() => addNode(def.type, {
-                x: 100 - viewport.x / viewport.zoom,
-                y: 150 - viewport.y / viewport.zoom
-              })}
+              onClick={() => { pushUndo(); const pos = { x: 100 - viewport.x / viewport.zoom, y: 150 - viewport.y / viewport.zoom }; addNode(def.type, pos); }}
             >
               <div className={styles.cardIndicator} style={{ backgroundColor: def.color }}></div>
               <span className={styles.cardIcon}>{def.icon}</span>
@@ -208,10 +238,10 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
         <div className={styles.templatesBlock}>
           <h4>Load Template</h4>
           <div className={styles.templateButtons}>
-            <button onClick={() => loadTemplate('invoice')} className="btn-secondary">Invoice OCR</button>
-            <button onClick={() => loadTemplate('rag')} className="btn-secondary">RAG Embeds</button>
+            <button onClick={() => { pushUndo(); loadTemplate('invoice'); }} className="btn-secondary">Invoice OCR</button>
+            <button onClick={() => { pushUndo(); loadTemplate('rag'); }} className="btn-secondary">RAG Embeds</button>
           </div>
-          <button onClick={resetFlow} className={styles.clearBtn}>Clear Canvas</button>
+          <button onClick={() => { pushUndo(); resetFlow(); }} className={styles.clearBtn}>Clear Canvas</button>
         </div>
       </aside>
 
@@ -236,9 +266,67 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
         <div
           ref={canvasRef}
           className={styles.canvasContainer}
+          tabIndex={0}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
           onMouseDown={handleCanvasMouseDown}
+          onKeyDown={(e) => {
+            if (e.ctrlKey && e.key === 'z') {
+              e.preventDefault();
+              setUndoStack(prev => {
+                if (prev.length === 0) return prev;
+                const snapshot = prev[prev.length - 1];
+                setNodes([...snapshot.nodes]);
+                setEdges([...snapshot.edges]);
+                selectNode(null);
+                setSelectedEdgeId(null);
+                setSelectAll(false);
+                return prev.slice(0, -1);
+              });
+            } else if (e.key === 'Delete' || e.key === 'Backspace') {
+              e.preventDefault();
+              if (selectedEdgeId) {
+                pushUndo();
+                deleteEdge(selectedEdgeId);
+                setSelectedEdgeId(null);
+              } else if (selectAll) {
+                pushUndo();
+                setNodes([]);
+                setEdges([]);
+                setSelectAll(false);
+                selectNode(null);
+              } else if (selectedNodeId) {
+                pushUndo();
+                deleteNode(selectedNodeId);
+                selectNode(null);
+              }
+            } else if (e.ctrlKey && e.key === 'c') {
+              e.preventDefault();
+              const node = nodes.find(n => n.id === selectedNodeId);
+              if (node) setClipboard({ type: node.type, config: { ...node.config } });
+            } else if (e.ctrlKey && e.key === 'v') {
+              e.preventDefault();
+              if (clipboard) {
+                pushUndo();
+                addNode(clipboard.type, { x: mousePos.x, y: mousePos.y });
+              }
+            } else if (e.ctrlKey && e.key === 'd') {
+              e.preventDefault();
+              const node = nodes.find(n => n.id === selectedNodeId);
+              if (node) {
+                pushUndo();
+                addNode(node.type, { x: node.position.x + 40, y: node.position.y + 40 });
+              }
+            } else if (e.ctrlKey && e.key === 'a') {
+              e.preventDefault();
+              setSelectAll(true);
+            } else if (e.key === 'Escape') {
+              selectNode(null);
+              setConnectionSource(null);
+              setSelectAll(false);
+              setSelectedEdgeId(null);
+            }
+          }}
         >
           <svg
             className={styles.svgOverlay}
@@ -254,9 +342,9 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
               if (!srcNode || !tgtNode) return null;
 
               const x1 = srcNode.position.x + 200;
-              const y1 = srcNode.position.y + 35;
+              const y1 = srcNode.position.y + getPortY(srcNode.id, edge.sourcePort || 'output', true);
               const x2 = tgtNode.position.x;
-              const y2 = tgtNode.position.y + 35;
+              const y2 = tgtNode.position.y + getPortY(tgtNode.id, edge.targetPort || 'input', false);
 
               const cx1 = x1 + Math.abs(x2 - x1) * 0.4;
               const cy1 = y1;
@@ -264,7 +352,7 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
               const cy2 = y2;
 
               return (
-                <g key={edge.id} className={styles.wireGroup}>
+                <g key={edge.id} className={`${styles.wireGroup} ${selectedEdgeId === edge.id ? styles.wireSelected : ''}`}>
                   <path
                     d={`M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`}
                     className={styles.wire}
@@ -272,19 +360,24 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
                   <path
                     d={`M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`}
                     className={styles.wireHotspot}
-                    onClick={() => deleteEdge(edge.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEdgeId(edge.id);
+                      selectNode(null);
+                      setSelectAll(false);
+                    }}
                   />
-                  <circle cx={(x1+x2)/2} cy={(y1+y2)/2} r="6" className={styles.wireDeleteNode} onClick={() => deleteEdge(edge.id)} />
+                  <circle cx={(x1+x2)/2} cy={(y1+y2)/2} r="6" className={styles.wireDeleteNode} onClick={() => { pushUndo(); deleteEdge(edge.id); }} />
                 </g>
               );
             })}
 
             {connectionSource && (
               (() => {
-                const srcNode = nodes.find(n => n.id === connectionSource);
+                const srcNode = nodes.find(n => n.id === connectionSource.nodeId);
                 if (!srcNode) return null;
                 const x1 = srcNode.position.x + 200;
-                const y1 = srcNode.position.y + 35;
+                const y1 = srcNode.position.y + getPortY(srcNode.id, connectionSource.portName, true);
                 const x2 = mousePos.x;
                 const y2 = mousePos.y;
                 const cx1 = x1 + Math.abs(x2 - x1) * 0.4;
@@ -313,7 +406,7 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
           >
             {nodes.map((node) => {
               const definition = getNodeDefinition(node.type);
-              const isSelected = selectedNodeId === node.id;
+              const isSelected = selectedNodeId === node.id || selectAll;
 
               if (!definition) return null;
 
@@ -329,21 +422,53 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
                   }}
                   onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
                 >
-                  <div
-                    className={`${styles.port} ${styles.portInput}`}
-                    onMouseUp={(e) => handlePortMouseUp(e, node.id)}
-                    title="Input port"
-                  >
-                    <span className={styles.portDot}></span>
-                  </div>
+                  {(definition.inputs && definition.inputs.length > 0
+                    ? definition.inputs.filter(i => !i.hidden).map((input, idx) => (
+                        <div
+                          key={`in-${input.name}`}
+                          className={`${styles.port} ${styles.portInput}`}
+                          style={{ top: `${35 + idx * 28}px` }}
+                          onMouseUp={(e) => handlePortMouseUp(e, node.id, input.name!)}
+                          title={`${input.label || input.name} (${input.type || 'any'})`}
+                        >
+                          <span className={styles.portDot}></span>
+                        </div>
+                      ))
+                    : (
+                      <div
+                        className={`${styles.port} ${styles.portInput}`}
+                        onMouseUp={(e) => handlePortMouseUp(e, node.id, 'input')}
+                        title="Input port"
+                      >
+                        <span className={styles.portDot}></span>
+                      </div>
+                    )
+                  )}
 
-                  <div
-                    className={`${styles.port} ${styles.portOutput}`}
-                    onMouseDown={(e) => handlePortMouseDown(e, node.id)}
-                    title="Output port"
-                  >
-                    <span className={styles.portDot}></span>
-                  </div>
+                  {(definition.outputs && definition.outputs.some(o => !o.hidden)
+                    ? definition.outputs.filter(o => !o.hidden).map((output, idx) => (
+                        <div
+                          key={`out-${output.name}`}
+                          className={`${styles.port} ${styles.portOutput}`}
+                          style={{ top: `${35 + idx * 28}px` }}
+                          onMouseDown={(e) => handlePortMouseDown(e, node.id, output.name!)}
+                          title={`${output.label || output.name} (${output.type || 'any'})`}
+                        >
+                          <span className={styles.portDot}></span>
+                        </div>
+                      ))
+                    : (definition.outputs && definition.outputs.length > 0
+                      ? null
+                      : (
+                        <div
+                          className={`${styles.port} ${styles.portOutput}`}
+                          onMouseDown={(e) => handlePortMouseDown(e, node.id, 'output')}
+                          title="Output port"
+                        >
+                          <span className={styles.portDot}></span>
+                        </div>
+                      ))
+                  )}
 
                   <div className={styles.nodeHeader} style={{ background: `linear-gradient(90deg, ${definition.color}15 0%, transparent 100%)` }}>
                     <span className={styles.nodeIcon}>{definition.icon}</span>
@@ -355,6 +480,7 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
                       className={styles.deleteNodeBtn}
                       onClick={(e) => {
                         e.stopPropagation();
+                        pushUndo();
                         deleteNode(node.id);
                       }}
                       title="Delete node"

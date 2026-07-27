@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFlowStore } from '../../store/flowStore';
 import { getNodeDefinition } from '../../config/nodeDefinitions';
 import { uploadDocument } from '../../services/backendApi';
@@ -78,6 +78,7 @@ export function NodeConfigPanel() {
   const renderConfigFields = () => {
     switch (node.type) {
       case 'ocr':
+      case 'ocr-node':
         return (
           <>
             <div className={styles.formGroup}>
@@ -272,6 +273,427 @@ export function NodeConfigPanel() {
           </>
         );
 
+      case 'handwriting-ocr':
+        return (
+          <>
+            <div className={styles.formGroup}>
+              <label>Language</label>
+              <select
+                value={localConfig.language || 'ar'}
+                onChange={(e) => handleUpdateField('language', e.target.value)}
+                className={styles.select}
+              >
+                <option value="ar">Arabic</option>
+                <option value="fr">French</option>
+                <option value="en">English</option>
+                <option value="ar,en">Arabic + English</option>
+                <option value="fr,en">French + English</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Max File Size (MB): {localConfig.max_file_size_mb ?? 50}</label>
+              <input
+                type="number"
+                min="1"
+                max="500"
+                value={localConfig.max_file_size_mb ?? 50}
+                onChange={(e) => handleUpdateField('max_file_size_mb', parseInt(e.target.value, 10))}
+                className={styles.textInput}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Allowed Extensions</label>
+              <input
+                type="text"
+                value={(localConfig.allowed_extensions || ['.png', '.jpg', '.jpeg', '.tiff', '.bmp']).join(', ')}
+                onChange={(e) => handleUpdateField('allowed_extensions', e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
+                className={styles.textInput}
+                placeholder=".png, .jpg"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>File ID (standalone mode)</label>
+              <input
+                type="text"
+                value={String(localConfig.file_id || '')}
+                onChange={(e) => handleUpdateField('file_id', e.target.value)}
+                className={styles.textInput}
+                placeholder="From /api/documents/upload"
+              />
+            </div>
+          </>
+        );
+
+      case 'regex-extractor':
+        return (
+          <>
+            <div className={styles.formGroup}>
+              <label>Template</label>
+              <select
+                value={localConfig.template || 'generic'}
+                onChange={(e) => handleUpdateField('template', e.target.value)}
+                className={styles.select}
+              >
+                <option value="generic">Generic</option>
+                <option value="invoice_fr">Invoice (French)</option>
+                <option value="invoice_ar">Invoice (Arabic)</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Language</label>
+              <select
+                value={localConfig.language || 'fr'}
+                onChange={(e) => handleUpdateField('language', e.target.value)}
+                className={styles.select}
+              >
+                <option value="fr">French</option>
+                <option value="en">English</option>
+                <option value="ar">Arabic</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Custom Patterns (JSON)</label>
+              <textarea
+                value={localConfig.custom_patterns || '[]'}
+                onChange={(e) => handleUpdateField('custom_patterns', e.target.value)}
+                className={styles.textarea}
+                rows={6}
+                placeholder='[{"key":"invoice_number","pattern":"INV-\\d+","label":"Invoice #"}]'
+              />
+              <span className={styles.helpText}>Used when template is &quot;custom&quot;</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>File ID (standalone mode)</label>
+              <input
+                type="text"
+                value={String(localConfig.file_id || '')}
+                onChange={(e) => handleUpdateField('file_id', e.target.value)}
+                className={styles.textInput}
+                placeholder="From /api/documents/upload"
+              />
+            </div>
+          </>
+        );
+
+      case 'semantic-extractor':
+        return (
+          <>
+            <div className={styles.formGroup}>
+              <label>Document Type</label>
+              <select
+                value={localConfig.document_type || 'generic'}
+                onChange={(e) => handleUpdateField('document_type', e.target.value)}
+                className={styles.select}
+              >
+                <option value="generic">Generic</option>
+                <option value="invoice_fr">Invoice (French)</option>
+                <option value="invoice_ar">Invoice (Arabic)</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Language</label>
+              <select
+                value={localConfig.language || 'fr'}
+                onChange={(e) => handleUpdateField('language', e.target.value)}
+                className={styles.select}
+              >
+                <option value="fr">French</option>
+                <option value="en">English</option>
+                <option value="ar">Arabic</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Custom Fields (JSON)</label>
+              <textarea
+                value={localConfig.fields || '[]'}
+                onChange={(e) => handleUpdateField('fields', e.target.value)}
+                className={styles.textarea}
+                rows={6}
+                placeholder='[{"key":"date","label":"Date","description":"Document date"}]'
+              />
+              <span className={styles.helpText}>Used when document type is &quot;custom&quot;</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>File ID (standalone mode)</label>
+              <input
+                type="text"
+                value={String(localConfig.file_id || '')}
+                onChange={(e) => handleUpdateField('file_id', e.target.value)}
+                className={styles.textInput}
+                placeholder="From /api/documents/upload"
+              />
+            </div>
+          </>
+        );
+
+      case 'text-cleaner':
+        return (
+          <>
+            <div className={styles.toggleGroup}>
+              <div className={styles.toggleRow}>
+                <span>Fix Hyphenation</span>
+                <input
+                  type="checkbox"
+                  checked={localConfig.fix_hyphenation ?? true}
+                  onChange={(e) => handleUpdateField('fix_hyphenation', e.target.checked)}
+                />
+              </div>
+              <div className={styles.toggleRow}>
+                <span>Collapse Whitespace</span>
+                <input
+                  type="checkbox"
+                  checked={localConfig.collapse_whitespace ?? true}
+                  onChange={(e) => handleUpdateField('collapse_whitespace', e.target.checked)}
+                />
+              </div>
+              <div className={styles.toggleRow}>
+                <span>Strip Special Chars</span>
+                <input
+                  type="checkbox"
+                  checked={localConfig.strip_special_chars ?? false}
+                  onChange={(e) => handleUpdateField('strip_special_chars', e.target.checked)}
+                />
+              </div>
+              <div className={styles.toggleRow}>
+                <span>Normalize Dates</span>
+                <input
+                  type="checkbox"
+                  checked={localConfig.normalize_dates ?? false}
+                  onChange={(e) => handleUpdateField('normalize_dates', e.target.checked)}
+                />
+              </div>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Casing</label>
+              <select
+                value={localConfig.normalize_casing || 'none'}
+                onChange={(e) => handleUpdateField('normalize_casing', e.target.value)}
+                className={styles.select}
+              >
+                <option value="none">Keep as-is</option>
+                <option value="lower">lowercase</option>
+                <option value="upper">UPPERCASE</option>
+                <option value="title">Title Case</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Date Output Format</label>
+              <input
+                type="text"
+                value={localConfig.date_output_format || '%Y-%m-%d'}
+                onChange={(e) => handleUpdateField('date_output_format', e.target.value)}
+                className={styles.textInput}
+                placeholder="%Y-%m-%d"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>File ID (standalone mode)</label>
+              <input
+                type="text"
+                value={String(localConfig.file_id || '')}
+                onChange={(e) => handleUpdateField('file_id', e.target.value)}
+                className={styles.textInput}
+                placeholder="From /api/documents/upload"
+              />
+            </div>
+          </>
+        );
+
+      case 'document-structure-analyzer':
+        return (
+          <>
+            <div className={styles.formGroup}>
+              <label>Partition Strategy</label>
+              <select
+                value={localConfig.strategy || 'auto'}
+                onChange={(e) => handleUpdateField('strategy', e.target.value)}
+                className={styles.select}
+              >
+                <option value="auto">Auto</option>
+                <option value="fast">Fast (no OCR)</option>
+                <option value="hi_res">High Resolution (Tesseract)</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Max File Size (MB): {localConfig.max_file_size_mb ?? 50}</label>
+              <input
+                type="number"
+                min="1"
+                max="500"
+                value={localConfig.max_file_size_mb ?? 50}
+                onChange={(e) => handleUpdateField('max_file_size_mb', parseInt(e.target.value, 10))}
+                className={styles.textInput}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Allowed Extensions</label>
+              <input
+                type="text"
+                value={(localConfig.allowed_extensions || ['.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.bmp']).join(', ')}
+                onChange={(e) => handleUpdateField('allowed_extensions', e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
+                className={styles.textInput}
+                placeholder=".pdf, .png, .jpg"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>File ID (standalone mode)</label>
+              <input
+                type="text"
+                value={String(localConfig.file_id || '')}
+                onChange={(e) => handleUpdateField('file_id', e.target.value)}
+                className={styles.textInput}
+                placeholder="From /api/documents/upload"
+              />
+            </div>
+          </>
+        );
+
+      case 'gap-checker':
+        return (
+          <>
+            <div className={styles.formGroup}>
+              <label>Checklist Template</label>
+              <select
+                value={localConfig.template || 'generic'}
+                onChange={(e) => handleUpdateField('template', e.target.value)}
+                className={styles.select}
+              >
+                <option value="generic">Generic</option>
+                <option value="invoice_fr">Invoice (French)</option>
+                <option value="claim_dossier">Claim Dossier</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Strictness Threshold: {localConfig.strictness_threshold ?? 0.85}</label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={localConfig.strictness_threshold ?? 0.85}
+                onChange={(e) => handleUpdateField('strictness_threshold', parseFloat(e.target.value))}
+                className={styles.range}
+              />
+              <div className={styles.rangeLabels}>
+                <span>0 (lenient)</span>
+                <span>1 (strict)</span>
+              </div>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Evaluation Mode</label>
+              <select
+                value={localConfig.evaluation_mode || 'both'}
+                onChange={(e) => handleUpdateField('evaluation_mode', e.target.value)}
+                className={styles.select}
+              >
+                <option value="deterministic_only">Deterministic Only (regex)</option>
+                <option value="semantic">Semantic (LLM)</option>
+                <option value="both">Both (regex + LLM)</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Custom Checklist (JSON)</label>
+              <textarea
+                value={localConfig.custom_checklist || '[]'}
+                onChange={(e) => handleUpdateField('custom_checklist', e.target.value)}
+                className={styles.textarea}
+                rows={6}
+                placeholder='[{"key":"date","label":"Date","required":true}]'
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Allowed Extensions</label>
+              <input
+                type="text"
+                value={(localConfig.allowed_extensions || ['.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.txt']).join(', ')}
+                onChange={(e) => handleUpdateField('allowed_extensions', e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
+                className={styles.textInput}
+                placeholder=".pdf, .png, .txt"
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>File ID (standalone mode)</label>
+              <input
+                type="text"
+                value={String(localConfig.file_id || '')}
+                onChange={(e) => handleUpdateField('file_id', e.target.value)}
+                className={styles.textInput}
+                placeholder="From /api/documents/upload"
+              />
+            </div>
+          </>
+        );
+
+      case 'prompt-builder':
+        return (
+          <>
+            <div className={styles.formGroup}>
+              <label>Prompt Template</label>
+              <select
+                value={localConfig.prompt_template || 'qa_with_sources'}
+                onChange={(e) => handleUpdateField('prompt_template', e.target.value)}
+                className={styles.select}
+              >
+                <option value="qa_with_sources">Q&A with Sources</option>
+                <option value="qa_concise">Q&A Concise</option>
+                <option value="summary">Summary</option>
+                <option value="analysis">Analysis</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Language</label>
+              <select
+                value={localConfig.language || 'fr'}
+                onChange={(e) => handleUpdateField('language', e.target.value)}
+                className={styles.select}
+              >
+                <option value="fr">French</option>
+                <option value="en">English</option>
+                <option value="ar">Arabic</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Custom Template</label>
+              <textarea
+                value={localConfig.custom_template || ''}
+                onChange={(e) => handleUpdateField('custom_template', e.target.value)}
+                className={styles.textarea}
+                rows={4}
+                placeholder="Use {'{'}chunks{'}'}, {'{'}context{'}'}, {'{'}question{'}'} placeholders"
+              />
+              <span className={styles.helpText}>Used when template is &quot;Custom&quot;</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>System Prompt</label>
+              <textarea
+                value={localConfig.system_prompt || ''}
+                onChange={(e) => handleUpdateField('system_prompt', e.target.value)}
+                className={styles.textarea}
+                rows={3}
+                placeholder="Optional system instruction"
+              />
+            </div>
+          </>
+        );
+
+      case 'feedback-collector':
+        return (
+          <div className={styles.formGroup}>
+            <label>Storage Path</label>
+            <input
+              type="text"
+              value={localConfig.storage_path || 'data/feedback'}
+              onChange={(e) => handleUpdateField('storage_path', e.target.value)}
+              className={styles.textInput}
+              placeholder="data/feedback"
+            />
+            <span className={styles.helpText}>Directory where feedback entries are stored</span>
+          </div>
+        );
+
       case 'denoising':
       case 'image-denoise':
         return (
@@ -406,8 +828,36 @@ export function NodeConfigPanel() {
     }
   };
 
+  const [panelWidth, setPanelWidth] = useState(320);
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartRef = useRef(0);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const onMove = (e: globalThis.MouseEvent) => {
+      const delta = resizeStartRef.current - e.clientX;
+      setPanelWidth(prev => Math.min(Math.max(prev + delta, 240), 500));
+      resizeStartRef.current = e.clientX;
+    };
+    const onUp = () => setIsResizing(false);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [isResizing]);
+
   return (
-    <aside className={styles.panel}>
+    <aside className={styles.panel} style={{ width: panelWidth }}>
+      <div
+        className={styles.resizeHandle}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          resizeStartRef.current = e.clientX;
+          setIsResizing(true);
+        }}
+      />
       <div className={styles.panelHeader}>
         <div className={styles.nodeMeta}>
           <span className={styles.nodeIcon}>{definition.icon}</span>
@@ -457,17 +907,36 @@ export function NodeConfigPanel() {
 
         {activeTab === 'io' && (
           <div className={styles.ioList}>
-            <h4>Input Connectors</h4>
-            <div className={styles.ioItem}>
-              <span>⬇️ Input Port</span>
-              <span className={styles.ioType}>Document Object</span>
-            </div>
-
-            <h4 style={{ marginTop: '20px' }}>Output Connectors</h4>
-            <div className={styles.ioItem}>
-              <span>📤 Output Port</span>
-              <span className={styles.ioType}>Extracted Text / JSON</span>
-            </div>
+            <h4>Input Connectors ({definition.inputs?.length || 0})</h4>
+            {(definition.inputs && definition.inputs.length > 0
+              ? definition.inputs.map(input => (
+                  <div key={input.name} className={styles.ioItem}>
+                    <span>⬇️ {input.label || input.name}{input.required ? ' *' : ''}</span>
+                    <span className={styles.ioType}>{input.type || 'any'}</span>
+                  </div>
+                ))
+              : (
+                <div className={styles.ioItem}>
+                  <span>⬇️ Input</span>
+                  <span className={styles.ioType}>any</span>
+                </div>
+              )
+            )}
+            <h4 style={{ marginTop: '20px' }}>Output Connectors ({definition.outputs?.length || 0})</h4>
+            {(definition.outputs && definition.outputs.length > 0
+              ? definition.outputs.map(output => (
+                  <div key={output.name} className={styles.ioItem}>
+                    <span>📤 {output.label || output.name}</span>
+                    <span className={styles.ioType}>{output.type || 'any'}</span>
+                  </div>
+                ))
+              : (
+                <div className={styles.ioItem}>
+                  <span>📤 Output</span>
+                  <span className={styles.ioType}>any</span>
+                </div>
+              )
+            )}
           </div>
         )}
 
