@@ -186,7 +186,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     icon: '📄',
     color: CATEGORY_COLORS.OCR,
     description: 'Convert printed/scanned images or PDFs to text using Tesseract',
-    defaultConfig: { language: 'eng', dpi: 300 },
+    defaultConfig: { file_id: '', language: 'eng', dpi: 300 },
     backendType: 'ocr-node',
   },
   {
@@ -243,13 +243,22 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
   {
+    type: 'table-extractor',
+    name: 'Table Extractor',
+    category: 'Extraction',
+    icon: '📊',
+    color: CATEGORY_COLORS.Extraction,
+    description: 'Detect tables in a page/region and extract row/column structure',
+    defaultConfig: { file_id: '', confidence_threshold: 0.7 },
+  },
+  {
     type: 'text-cleaner',
     name: 'Text Cleaner',
     category: 'Preprocessing',
     icon: '🧹',
     color: CATEGORY_COLORS.Preprocessing,
     description: 'Clean and normalize raw text: whitespace, hyphenation, casing, dates',
-    defaultConfig: {},
+    defaultConfig: { file_id: '', normalize_dates: false, normalize_casing: '' },
     backendType: 'text-cleaner',
   },
   {

@@ -5610,6 +5610,9 @@ all = [
     { name = "python-docx" },
     { name = "qdrant-client" },
     { name = "ruff" },
+    { name = "timm" },
+    { name = "torch" },
+    { name = "transformers" },
     { name = "unstructured", extra = ["image", "pdf"] },
 ]
 conversion = [
@@ -5635,6 +5638,15 @@ ocr = [
 ]
 structure = [
     { name = "unstructured", extra = ["image", "pdf"] },
+]
+table-extraction = [
+    { name = "timm" },
+    { name = "torch" },
+    { name = "transformers" },
+]
+tesseract = [
+    { name = "pdf2image" },
+    { name = "pytesseract" },
 ]
 translation = [
     { name = "argostranslate" },
@@ -5664,23 +5676,28 @@ requires-dist = [
     { name = "openai", marker = "extra == 'llm'", specifier = ">=1.0.0" },
     { name = "opencv-python-headless", marker = "extra == 'watermark'", specifier = ">=4.9.0" },
     { name = "pdf2image", marker = "extra == 'ocr'", specifier = ">=1.17.0" },
+    { name = "pdf2image", marker = "extra == 'tesseract'", specifier = ">=1.17.0" },
     { name = "pillow", marker = "extra == 'conversion'", specifier = ">=10.0.0" },
     { name = "pillow", marker = "extra == 'ocr'", specifier = ">=10.0.0" },
     { name = "pydantic", specifier = ">=2.0.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
     { name = "pymupdf", marker = "extra == 'watermark'", specifier = ">=1.24.0" },
     { name = "pytesseract", marker = "extra == 'ocr'", specifier = ">=0.3.10" },
+    { name = "pytesseract", marker = "extra == 'tesseract'", specifier = ">=0.3.10" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24.0" },
     { name = "python-docx", marker = "extra == 'conversion'", specifier = ">=1.1.0" },
     { name = "python-multipart", specifier = ">=0.0.12" },
     { name = "qdrant-client", marker = "extra == 'vector'", specifier = ">=1.9.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6.0" },
-    { name = "sympact-backend", extras = ["dev", "ocr", "llm", "vector", "structure", "translation", "conversion", "watermark"], marker = "extra == 'all'" },
+    { name = "sympact-backend", extras = ["dev", "ocr", "llm", "vector", "structure", "translation", "conversion", "watermark", "table-extraction", "tesseract"], marker = "extra == 'all'" },
+    { name = "timm", marker = "extra == 'table-extraction'", specifier = ">=1.0.0" },
+    { name = "torch", marker = "extra == 'table-extraction'", specifier = ">=2.0.0" },
+    { name = "transformers", marker = "extra == 'table-extraction'", specifier = ">=4.40.0" },
     { name = "unstructured", extras = ["image", "pdf"], marker = "extra == 'structure'", specifier = ">=0.16.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30.0" },
 ]
-provides-extras = ["dev", "ocr", "llm", "vector", "structure", "translation", "conversion", "watermark", "all"]
+provides-extras = ["dev", "ocr", "llm", "vector", "structure", "translation", "conversion", "watermark", "table-extraction", "tesseract", "all"]
 
 [[package]]
 name = "sympy"
@@ -5804,11 +5821,11 @@ name = "timm"
 version = "1.0.28"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "huggingface-hub", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "pyyaml", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "safetensors", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "torch", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "torchvision", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
+    { name = "huggingface-hub" },
+    { name = "pyyaml" },
+    { name = "safetensors" },
+    { name = "torch" },
+    { name = "torchvision" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/35/03/e41389ac641747bfec48d016fde8be1eade1901e6f2c1aedcb0c8cb4b5d9/timm-1.0.28.tar.gz", hash = "sha256:3789d313fdd5541a327b60180d70dbb4bdec73db8ff0655e413db3c3d134a9a4", size = 2451413, upload-time = "2026-07-11T17:24:32.615Z" }
 wheels = [
@@ -5933,15 +5950,15 @@ name = "transformers"
 version = "5.14.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "huggingface-hub", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "numpy", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "packaging", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "pyyaml", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "regex", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "safetensors", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "tokenizers", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "tqdm", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
-    { name = "typer", marker = "python_full_version == '3.12.*' or sys_platform != 'win32'" },
+    { name = "huggingface-hub" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pyyaml" },
+    { name = "regex" },
+    { name = "safetensors" },
+    { name = "tokenizers" },
+    { name = "tqdm" },
+    { name = "typer" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/5a/fb/2a2ba88f325e68a921d8b69ff63b477830b2e73ade9a3c8c8cab2f06d741/transformers-5.14.1.tar.gz", hash = "sha256:60d196c27781eacf8637e2b533f517582907ad6f9ae142046d6b69431a5b2173", size = 9295927, upload-time = "2026-07-16T09:41:57.773Z" }
 wheels = [
