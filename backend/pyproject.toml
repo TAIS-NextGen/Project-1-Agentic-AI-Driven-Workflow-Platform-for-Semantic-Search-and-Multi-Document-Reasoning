@@ -59,8 +59,11 @@ tesseract = [
     "pytesseract>=0.3.10",
     "pdf2image>=1.17.0",
 ]
+embedding = [
+    "sentence-transformers>=2.7.0",
+]
 all = [
-    "sympact-backend[dev,ocr,llm,vector,structure,translation,conversion,watermark,table_extraction,tesseract]",
+    "sympact-backend[dev,ocr,llm,vector,structure,translation,conversion,watermark,table_extraction,tesseract,embedding]",
 ]
 
 [tool.ruff]
