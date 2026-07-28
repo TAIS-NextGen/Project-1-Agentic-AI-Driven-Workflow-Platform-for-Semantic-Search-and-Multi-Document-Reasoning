@@ -89,16 +89,6 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     defaultConfig: { chunkSize: 512, overlap: 50 },
   },
   {
-    type: 'ocr',
-    name: 'OCR',
-    category: 'OCR',
-    icon: '👁️',
-    color: CATEGORY_COLORS.OCR,
-    description: 'Extract text from images',
-    defaultConfig: { language: 'en' },
-    backendType: 'ocr-node',
-  },
-  {
     type: 'embedding',
     name: 'Embedding',
     category: 'RAG/Embeddings',
@@ -288,7 +278,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     defaultConfig: {},
     backendType: 'gap-checker',
     inputs: [
-      { name: 'document', type: 'document', label: 'Document', required: false },
+      { name: 'text', type: 'text', label: 'Text', required: true },
     ],
     outputs: [
       { name: 'report', type: 'json', label: 'Gap Report' },

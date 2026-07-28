@@ -21,7 +21,8 @@ CRITICAL RULES:
 4. Normalize dates to YYYY-MM-DD format when possible.
 5. Don't invent or hallucinate values — if the document doesn't say it, use null.
 6. For amounts, extract just the numeric value (no currency symbols).
-7. Return the JSON object directly, no wrapping."""
+7. Return the JSON object directly, no wrapping.
+8. For reference numbers (invoice, facture, bon, commande): scan the text near keywords like 'Facture', 'N°', 'Numero', 'Ref', 'No'. The identifier often appears right after these keywords on the same line, sometimes separated by ':' or ':'. Examples: 'Facture N°: FACT-2026-0842' -> 'FACT-2026-0842', 'N° INV-1234' -> 'INV-1234'."""
 
 
 class LLMExtractionService:
@@ -97,13 +98,7 @@ class LLMExtractionService:
         schema = {}
         for f in fields:
             key = f.get("key", f.get("name", ""))
-            ftype = f.get("type", "string")
-            if ftype == "number":
-                schema[key] = 0
-            elif ftype == "array":
-                schema[key] = []
-            else:
-                schema[key] = "..."
+            schema[key] = None
         return json_lib.dumps(schema, indent=2, ensure_ascii=False)
 
     async def extract(
@@ -112,6 +107,9 @@ class LLMExtractionService:
         fields: list[dict[str, Any]],
         language: str = "fr",
     ) -> dict[str, Any]:
+        text = re.sub(r"\bN\u00b0\b", "No", text)
+        text = re.sub(r"\n\s*\}\s*\d*\s*$", "", text)
+
         fields_section = self._build_fields_section(fields)
         output_schema = self._build_output_schema(fields)
         language_hint = f"\nDocument language: {language}." if language else ""
@@ -157,6 +155,24 @@ DOCUMENT TEXT:
                 "label": f.get("label", key),
                 "found": value is not None,
             }
+
+        for f in fields:
+            key = f.get("key", f.get("name", ""))
+            if not key or result.get(key, {}).get("found"):
+                continue
+            pattern = f.get("pattern", "")
+            if not pattern:
+                continue
+            match = re.search(pattern, text)
+            if match:
+                raw = match.group(1) if match.lastindex else match.group(0)
+                value, confidence = self._validate_field(raw.strip(), f)
+                result[key] = {
+                    "value": value,
+                    "confidence": round(confidence, 4),
+                    "label": f.get("label", key),
+                    "found": value is not None,
+                }
 
         matched = sum(1 for v in result.values() if v["found"])
         total = len(result)

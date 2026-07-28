@@ -77,50 +77,26 @@ export function NodeConfigPanel() {
 
   const renderConfigFields = () => {
     switch (node.type) {
-      case 'ocr':
       case 'ocr-node':
         return (
           <>
             <div className={styles.formGroup}>
-              <label>OCR Engine</label>
+              <label>Language</label>
               <select
-                value={localConfig.engine || 'tesseract'}
-                onChange={(e) => handleUpdateField('engine', e.target.value)}
+                value={localConfig.language || 'eng'}
+                onChange={(e) => handleUpdateField('language', e.target.value)}
                 className={styles.select}
               >
-                <option value="tesseract">Tesseract OCR</option>
-                <option value="cloud-vision">Google Cloud Vision</option>
-                <option value="azure-ocr">Azure Read API</option>
-                <option value="pdf-extractor">Native PDF Parser</option>
+                <option value="eng">English</option>
+                <option value="fra">French</option>
+                <option value="ara">Arabic</option>
+                <option value="eng+fra">English + French</option>
+                <option value="eng+ara">English + Arabic</option>
+                <option value="fra+ara">French + Arabic</option>
               </select>
             </div>
-
             <div className={styles.formGroup}>
-              <label>Language(s)</label>
-              <div className={styles.pillsRow}>
-                {['English', 'French', 'Arabic'].map((lang) => {
-                  const currentLangs = localConfig.languages || ['English'];
-                  const exists = currentLangs.includes(lang);
-                  return (
-                    <button
-                      key={lang}
-                      onClick={() => {
-                        const next = exists
-                          ? currentLangs.filter((l: string) => l !== lang)
-                          : [...currentLangs, lang];
-                        handleUpdateField('languages', next.length ? next : ['English']);
-                      }}
-                      className={`${styles.pill} ${exists ? styles.pillActive : ''}`}
-                    >
-                      {lang} {exists ? '×' : '+'}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>Resolution (DPI): {localConfig.dpi || 300}</label>
+              <label>PDF Resolution: {localConfig.dpi || 300} DPI</label>
               <input
                 type="range"
                 min="72"
@@ -135,54 +111,15 @@ export function NodeConfigPanel() {
                 <span>600 DPI</span>
               </div>
             </div>
-
             <div className={styles.formGroup}>
-              <label>Output Format</label>
-              <div className={styles.formatButtonGroup}>
-                {['Plain Text', 'Structured', 'JSON'].map((fmt) => {
-                  const active = (localConfig.format || 'Structured') === fmt;
-                  return (
-                    <button
-                      key={fmt}
-                      onClick={() => handleUpdateField('format', fmt)}
-                      className={`${styles.formatBtn} ${active ? styles.formatBtnActive : ''}`}
-                    >
-                      {fmt}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>Confidence Threshold: {localConfig.confidence || 75}%</label>
+              <label>File ID (standalone mode)</label>
               <input
-                type="range"
-                min="0"
-                max="100"
-                value={localConfig.confidence || 75}
-                onChange={(e) => handleUpdateField('confidence', parseInt(e.target.value))}
-                className={styles.range}
+                type="text"
+                value={String(localConfig.file_id || '')}
+                onChange={(e) => handleUpdateField('file_id', e.target.value)}
+                className={styles.textInput}
+                placeholder="From /api/documents/upload"
               />
-            </div>
-
-            <div className={styles.toggleGroup}>
-              <div className={styles.toggleRow}>
-                <span>Preserve Layout</span>
-                <input
-                  type="checkbox"
-                  checked={localConfig.preserveLayout ?? true}
-                  onChange={(e) => handleUpdateField('preserveLayout', e.target.checked)}
-                />
-              </div>
-              <div className={styles.toggleRow}>
-                <span>Ignore Headers/Footers</span>
-                <input
-                  type="checkbox"
-                  checked={localConfig.ignoreHeadersFooters ?? false}
-                  onChange={(e) => handleUpdateField('ignoreHeadersFooters', e.target.checked)}
-                />
-              </div>
             </div>
           </>
         );
@@ -566,6 +503,18 @@ export function NodeConfigPanel() {
               </select>
             </div>
             <div className={styles.formGroup}>
+              <label>Language</label>
+              <select
+                value={localConfig.language || 'fr'}
+                onChange={(e) => handleUpdateField('language', e.target.value)}
+                className={styles.select}
+              >
+                <option value="fr">French</option>
+                <option value="en">English</option>
+                <option value="ar">Arabic</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
               <label>Strictness Threshold: {localConfig.strictness_threshold ?? 0.85}</label>
               <input
                 type="range"
@@ -601,26 +550,6 @@ export function NodeConfigPanel() {
                 className={styles.textarea}
                 rows={6}
                 placeholder='[{"key":"date","label":"Date","required":true}]'
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Allowed Extensions</label>
-              <input
-                type="text"
-                value={(localConfig.allowed_extensions || ['.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.bmp', '.txt']).join(', ')}
-                onChange={(e) => handleUpdateField('allowed_extensions', e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
-                className={styles.textInput}
-                placeholder=".pdf, .png, .txt"
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>File ID (standalone mode)</label>
-              <input
-                type="text"
-                value={String(localConfig.file_id || '')}
-                onChange={(e) => handleUpdateField('file_id', e.target.value)}
-                className={styles.textInput}
-                placeholder="From /api/documents/upload"
               />
             </div>
           </>
@@ -705,7 +634,11 @@ export function NodeConfigPanel() {
                 onChange={(e) => handleUpdateField('method', e.target.value)}
                 className={styles.select}
               >
-                <option value="pil-median">PIL Median Filter</option>
+                <option value="auto">Auto (contrast + binarize)</option>
+                <option value="pil-median">Median Filter (denoise)</option>
+                <option value="contrast">Contrast Enhancement</option>
+                <option value="binarize">Binarize (threshold)</option>
+                <option value="sharpen">Sharpen</option>
                 <option value="gaussian">Gaussian Blur</option>
               </select>
             </div>

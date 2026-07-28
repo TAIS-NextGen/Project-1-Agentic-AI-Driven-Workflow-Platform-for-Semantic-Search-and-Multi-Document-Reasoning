@@ -81,7 +81,7 @@ class ImageDenoiseNode(BaseNode):
             type="text",
             required=False,
             default="pil-median",
-            description="Processing strategy to apply: pil-median",
+            description="Processing strategy: auto, pil-median, contrast, binarize, sharpen, gaussian-blur",
         ),
     ]
 
@@ -134,12 +134,27 @@ class ImageDenoiseNode(BaseNode):
                 )
                 return result
 
-            from PIL import Image, ImageFilter
+            from PIL import Image, ImageFilter, ImageEnhance
 
             with Image.open(file_path) as image:
                 image = image.convert("RGB")
                 if method == "pil-median":
                     filtered = image.filter(ImageFilter.MedianFilter(size=3))
+                elif method == "contrast":
+                    enhancer = ImageEnhance.Contrast(image)
+                    filtered = enhancer.enhance(2.0)
+                elif method == "binarize":
+                    gray = image.convert("L")
+                    threshold = gray.point(lambda p: 255 if p > 128 else 0)
+                    filtered = threshold.convert("RGB")
+                elif method == "sharpen":
+                    enhancer = ImageEnhance.Sharpness(image)
+                    filtered = enhancer.enhance(2.0)
+                elif method == "auto":
+                    enhanced = ImageEnhance.Contrast(image).enhance(1.5)
+                    gray = enhanced.convert("L")
+                    threshold = gray.point(lambda p: 255 if p > 128 else 0)
+                    filtered = threshold.convert("RGB")
                 else:
                     filtered = image.filter(ImageFilter.GaussianBlur(radius=1))
 

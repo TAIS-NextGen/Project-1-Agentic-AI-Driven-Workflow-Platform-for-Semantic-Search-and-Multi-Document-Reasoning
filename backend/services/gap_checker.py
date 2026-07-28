@@ -73,7 +73,7 @@ class GapCheckerService:
             logger.warning(f"Invalid regex pattern for field '{field.get('key')}': {pattern}")
         return None
 
-    async def _semantic_check_field(self, text: str, field: dict[str, Any]) -> dict[str, Any]:
+    async def _semantic_check_field(self, text: str, field: dict[str, Any], language: str = "fr") -> dict[str, Any]:
         key = field["key"]
         label = field.get("label", key)
         description = field.get("description", f"Determine if '{label}' is present in the document.")
@@ -82,6 +82,8 @@ class GapCheckerService:
 
         prompt = f"""REQUIREMENT: {label}
 DESCRIPTION: {description}
+
+Document language: {language}
 
 TARGET DOCUMENT:
 {text[:8000]}"""
@@ -160,6 +162,7 @@ TARGET DOCUMENT:
         checklist: dict[str, Any],
         mode: str = "both",
         threshold: float = 0.85,
+        language: str = "fr",
     ) -> dict[str, Any]:
         fields = self._get_fields(checklist)
         results: list[GapFieldDetail] = []
@@ -188,7 +191,7 @@ TARGET DOCUMENT:
 
         if mode in ("semantic", "both"):
             for field in semantic_fields:
-                sem_result = await self._semantic_check_field(text, field)
+                sem_result = await self._semantic_check_field(text, field, language)
                 results.append(GapFieldDetail(**sem_result))
 
         if mode == "deterministic_only":

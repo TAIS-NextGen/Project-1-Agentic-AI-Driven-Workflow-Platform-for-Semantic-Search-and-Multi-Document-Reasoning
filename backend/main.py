@@ -11,6 +11,18 @@ import os
 from backend.api import nodes, workflows, documents
 from backend.settings import settings
 
+if settings.ocr_tesseract_path:
+    import pytesseract
+
+    pytesseract.pytesseract.tesseract_cmd = settings.ocr_tesseract_path
+
+    try:
+        import unstructured_pytesseract
+
+        unstructured_pytesseract.pytesseract.tesseract_cmd = settings.ocr_tesseract_path
+    except ImportError:
+        pass
+
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,

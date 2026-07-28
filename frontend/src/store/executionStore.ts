@@ -219,6 +219,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           sourcePort = 'structure';
         } else if (sourceNode?.type === 'gap-checker') {
           sourcePort = 'report';
+        } else if (sourceNode?.type === 'ocr-node') {
+          sourcePort = 'text';
         }
 
         if (targetNode?.type === 'document-upload') {
@@ -234,6 +236,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         } else if (targetNode?.type === 'document-structure-analyzer') {
           targetPort = 'document';
         } else if (targetNode?.type === 'gap-checker') {
+          targetPort = 'text';
+        } else if (targetNode?.type === 'ocr-node') {
           targetPort = 'document';
         }
 
