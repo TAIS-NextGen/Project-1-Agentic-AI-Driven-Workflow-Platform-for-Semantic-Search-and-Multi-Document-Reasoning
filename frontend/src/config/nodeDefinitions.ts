@@ -324,6 +324,23 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
       { name: 'stored', type: 'json', label: 'Storage Confirmation', hidden: true },
     ],
   },
+  {
+  type: 'embedding',
+  name: 'Embedding',
+  category: 'RAG/Embeddings',
+  icon: '🔢',
+  color: CATEGORY_COLORS['RAG/Embeddings'],
+  description: 'Convert text chunks into vector embeddings using a local model',
+  defaultConfig: { model_name: 'BAAI/bge-small-en-v1.5' },
+  backendType: 'embedding-node',
+  inputs: [
+    { name: 'chunks', type: 'json', label: 'Chunks', required: true },
+  ],
+  outputs: [
+    { name: 'embeddings', type: 'json', label: 'Embeddings' },
+    { name: 'dimension', type: 'json', label: 'Vector Dimension', hidden: true },
+  ],
+},
 ];
 
 export function getNodeDefinition(type: string): NodeDefinition | undefined {
