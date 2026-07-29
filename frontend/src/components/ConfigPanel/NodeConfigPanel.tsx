@@ -623,6 +623,46 @@ export function NodeConfigPanel() {
           </div>
         );
 
+      case 'image-agent':
+        return (
+          <>
+            <div className={styles.formGroup}>
+              <label>Vision Model</label>
+              <select
+                value={localConfig.model || 'moondream:latest'}
+                onChange={(e) => handleUpdateField('model', e.target.value)}
+                className={styles.select}
+              >
+                <option value="moondream:latest">Moondream 2 (fast, 1.7GB)</option>
+                <option value="llava:7b">LLaVA 7B (accurate, 4.5GB)</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Language</label>
+              <select
+                value={localConfig.language || 'en'}
+                onChange={(e) => handleUpdateField('language', e.target.value)}
+                className={styles.select}
+              >
+                <option value="en">English</option>
+                <option value="fr">French</option>
+                <option value="ar">Arabic</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Question</label>
+              <input
+                type="text"
+                value={localConfig.question ?? ''}
+                onChange={(e) => handleUpdateField('question', e.target.value)}
+                className={styles.textInput}
+                placeholder="Describe this image in detail."
+              />
+              <span className={styles.helpText}>e.g. What type of graph is this?</span>
+            </div>
+          </>
+        );
+
       case 'denoising':
       case 'image-denoise':
         return (

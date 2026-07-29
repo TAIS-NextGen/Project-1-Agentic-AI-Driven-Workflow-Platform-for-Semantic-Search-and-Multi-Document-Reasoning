@@ -221,6 +221,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           sourcePort = 'report';
         } else if (sourceNode?.type === 'ocr-node') {
           sourcePort = 'text';
+        } else if (sourceNode?.type === 'image-agent') {
+          sourcePort = 'interpretation';
         }
 
         if (targetNode?.type === 'document-upload') {

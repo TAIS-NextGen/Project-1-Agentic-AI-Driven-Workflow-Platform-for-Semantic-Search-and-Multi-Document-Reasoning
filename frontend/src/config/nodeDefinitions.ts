@@ -282,8 +282,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
     outputs: [
       { name: 'report', type: 'json', label: 'Gap Report' },
-      { name: 'score', type: 'json', label: 'Completeness Score' },
-      { name: 'missing', type: 'json', label: 'Missing Fields' },
+      { name: 'score', type: 'json', label: 'Completeness Score', hidden: true },
+      { name: 'missing', type: 'json', label: 'Missing Fields', hidden: true },
     ],
   },
   {
@@ -325,7 +325,23 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
   {
-  type: 'embedding',
+    type: 'image-agent',
+    name: 'Image Agent',
+    category: 'Extraction',
+    icon: '🖼️',
+    color: '#a855f7',
+    description: 'Analyse graphs, diagrams, and images using visual AI (Moondream2)',
+    defaultConfig: { language: 'en', question: 'Describe this image in detail.' },
+    backendType: 'image-agent',
+    inputs: [
+      { name: 'image', type: 'image', label: 'Image', required: true },
+    ],
+    outputs: [
+      { name: 'interpretation', type: 'text', label: 'Interpretation' },
+    ],
+  },
+  {
+    type: 'embedding',
   name: 'Embedding',
   category: 'RAG/Embeddings',
   icon: '🔢',
