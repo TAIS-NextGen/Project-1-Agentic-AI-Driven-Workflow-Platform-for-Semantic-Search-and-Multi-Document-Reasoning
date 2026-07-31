@@ -12,7 +12,6 @@ export type NodeDefinitionInput = {
   label?: string;
   description?: string;
   required?: boolean;
-  hidden?: boolean;
 };
 
 export type NodeDefinitionOutput = NodeDefinitionInput;
@@ -63,10 +62,10 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
     outputs: [
       { name: 'document', type: 'document', label: 'Document' },
-      { name: 'file_path', type: 'text', label: 'File Path', hidden: true },
-      { name: 'file_name', type: 'text', label: 'File Name', hidden: true },
-      { name: 'mime_type', type: 'text', label: 'MIME Type', hidden: true },
-      { name: 'size_bytes', type: 'json', label: 'Size (bytes)', hidden: true },
+      { name: 'file_path', type: 'text', label: 'File Path' },
+      { name: 'file_name', type: 'text', label: 'File Name' },
+      { name: 'mime_type', type: 'text', label: 'MIME Type' },
+      { name: 'size_bytes', type: 'json', label: 'Size (bytes)' },
     ],
   },
   {
@@ -193,8 +192,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
     outputs: [
       { name: 'text', type: 'text', label: 'Extracted Text' },
-      { name: 'confidence', type: 'json', label: 'Confidence', hidden: true },
-      { name: 'details', type: 'json', label: 'Details', hidden: true },
+      { name: 'confidence', type: 'json', label: 'Confidence' },
+      { name: 'details', type: 'json', label: 'Details' },
     ],
   },
   {
@@ -212,7 +211,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     outputs: [
       { name: 'extracted', type: 'json', label: 'Extracted Fields' },
       { name: 'missing', type: 'json', label: 'Missing Fields' },
-      { name: 'stats', type: 'json', label: 'Statistics', hidden: true },
+      { name: 'stats', type: 'json', label: 'Statistics' },
     ],
   },
   {
@@ -229,7 +228,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
     outputs: [
       { name: 'extracted', type: 'json', label: 'Extracted Fields' },
-      { name: 'stats', type: 'json', label: 'Statistics', hidden: true },
+      { name: 'stats', type: 'json', label: 'Statistics' },
     ],
   },
   {
@@ -265,7 +264,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
     outputs: [
       { name: 'structure', type: 'json', label: 'Structure Map' },
-      { name: 'summary', type: 'json', label: 'Summary', hidden: true },
+      { name: 'summary', type: 'json', label: 'Summary' },
     ],
   },
   {
@@ -282,8 +281,8 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
     outputs: [
       { name: 'report', type: 'json', label: 'Gap Report' },
-      { name: 'score', type: 'json', label: 'Completeness Score', hidden: true },
-      { name: 'missing', type: 'json', label: 'Missing Fields', hidden: true },
+      { name: 'score', type: 'json', label: 'Completeness Score' },
+      { name: 'missing', type: 'json', label: 'Missing Fields' },
     ],
   },
   {
@@ -321,7 +320,7 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
     outputs: [
       { name: 'signal', type: 'json', label: 'Feedback Signal' },
-      { name: 'stored', type: 'json', label: 'Storage Confirmation', hidden: true },
+      { name: 'stored', type: 'json', label: 'Storage Confirmation' },
     ],
   },
   {
@@ -354,9 +353,47 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
   ],
   outputs: [
     { name: 'embeddings', type: 'json', label: 'Embeddings' },
-    { name: 'dimension', type: 'json', label: 'Vector Dimension', hidden: true },
+    { name: 'dimension', type: 'json', label: 'Vector Dimension' },
   ],
 },
+  {
+    type: 'sentiment-analyzer',
+    name: 'Sentiment / Tone Analyzer',
+    category: 'Extraction',
+    icon: '\uD83C\uDFAD',
+    color: '#f59e0b',
+    description: 'Analyse le ton et le sentiment du texte : polarite, tonalites, intensite et score de confiance',
+    defaultConfig: {},
+    backendType: 'sentiment-analyzer',
+    inputs: [
+      { name: 'text', type: 'text', label: 'Text', required: true },
+    ],
+    outputs: [
+      { name: 'sentiment', type: 'json', label: 'Sentiment Score' },
+      { name: 'tone', type: 'json', label: 'Tone Analysis' },
+      { name: 'summary', type: 'text', label: 'Summary' },
+    ],
+  },
+  {
+    type: 'critic-agent',
+    name: 'Validation / Critic Agent',
+    category: 'Extraction',
+    icon: '\u2705',
+    color: '#22c55e',
+    description: 'Verifier la fiabilite d\'une reponse generee en la croisant avec les documents sources (inspire ORCA)',
+    defaultConfig: {},
+    backendType: 'critic-agent',
+    inputs: [
+      { name: 'generated_response', type: 'text', label: 'Generated Response', required: true },
+      { name: 'evidence', type: 'json', label: 'Evidence', required: true },
+      { name: 'question', type: 'text', label: 'Question', required: false },
+    ],
+    outputs: [
+      { name: 'verdict', type: 'json', label: 'Verdict' },
+      { name: 'corrected_response', type: 'text', label: 'Corrected Response' },
+      { name: 'score', type: 'json', label: 'Score Details' },
+    ],
+  },
 ];
 
 export function getNodeDefinition(type: string): NodeDefinition | undefined {
