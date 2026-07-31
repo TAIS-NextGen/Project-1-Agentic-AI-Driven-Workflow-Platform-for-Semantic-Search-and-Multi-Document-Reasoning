@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, type MouseEvent } from 'react';
 import { useFlowStore } from '../../store/flowStore';
+import { useExecutionStore } from '../../store/executionStore';
 import { NODE_DEFINITIONS, getNodeDefinition, type NodeDefinition } from '../../config/nodeDefinitions';
 import { NodeConfigPanel } from '../ConfigPanel/NodeConfigPanel';
 import { fetchBackendNodeDefinitions } from '../../services/backendApi';
@@ -27,6 +28,44 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
     loadTemplate,
     resetFlow
   } = useFlowStore();
+
+  const { executionResults } = useExecutionStore();
+
+  const formatOutputPreview = (nodeId: string): string | null => {
+    if (!executionResults) return null;
+    const result = executionResults[nodeId];
+    if (!result || result.status !== 'success') return null;
+
+    const outputs = result.outputs;
+    if (!outputs || typeof outputs !== 'object') return null;
+
+    const lines: string[] = [];
+    for (const [key, value] of Object.entries(outputs)) {
+      if (typeof value === 'string' && value.length < 60) {
+        lines.push(key + ': ' + value.trim().slice(0, 40));
+      } else if (typeof value === 'number') {
+        lines.push(key + ': ' + value);
+      } else if (typeof value === 'object' && value !== null) {
+        const inner = value as Record<string, unknown>;
+        if (inner.polarity !== undefined || inner.score !== undefined) {
+          const parts = [inner.polarity, inner.score];
+          lines.push(parts.filter(Boolean).join(' '));
+        } else if (inner.confidence_score !== undefined) {
+          const flag = inner.is_supported ? '\u2713' : '\u2717';
+          const conf = Number(inner.confidence_score).toFixed(2);
+          lines.push(flag + ' supported, conf: ' + conf);
+        } else if (typeof inner.text === 'string') {
+          lines.push(inner.text.trim().slice(0, 50));
+        } else {
+          const keys = Object.keys(inner).slice(0, 2);
+          if (keys.length > 0) lines.push(keys.join(', '));
+        }
+      }
+      if (lines.length >= 3) break;
+    }
+
+    return lines.length > 0 ? lines.join(' \u00B7 ') : null;
+  };
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [nodeSearch, setNodeSearch] = useState('');
@@ -508,6 +547,10 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
                     <span className={`${styles.nodeStatusBadge} ${styles[node.status]}`}>
                       {node.status}
                     </span>
+                    {(() => {
+                      const preview = formatOutputPreview(node.id);
+                      return preview ? <div className={styles.nodeOutputPreview}>{preview}</div> : null;
+                    })()}
                   </div>
                 </div>
               );
