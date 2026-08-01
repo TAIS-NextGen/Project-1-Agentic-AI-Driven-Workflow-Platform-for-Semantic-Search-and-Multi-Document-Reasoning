@@ -414,7 +414,26 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     defaultConfig: { from_language: 'fr', to_language: 'en' },
     backendType: 'translator',
   },
+  {
+    type: 'table-agent',
+    name: 'Table Agent',
+    category: 'Extraction',
+    icon: '📋',
+    color: CATEGORY_COLORS.Extraction,
+    description: 'Reason over structured tables to answer questions (beyond raw extraction)',
+    defaultConfig: { model: '' },
+    backendType: 'table-agent',
+    inputs: [
+      { name: 'table', type: 'json', label: 'Table', required: true },
+      { name: 'question', type: 'text', label: 'Question', required: true },
+    ],
+    outputs: [
+      { name: 'answer', type: 'text', label: 'Answer' },
+      { name: 'reasoning', type: 'text', label: 'Reasoning' },
+    ],
+  },
 ];
+
 export function getNodeDefinition(type: string): NodeDefinition | undefined {
   const staticDefinition = NODE_DEFINITIONS.find((definition) => definition.type === type);
   if (staticDefinition) {
