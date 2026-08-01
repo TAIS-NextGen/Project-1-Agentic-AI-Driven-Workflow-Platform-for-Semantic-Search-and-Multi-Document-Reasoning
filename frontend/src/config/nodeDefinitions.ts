@@ -404,6 +404,16 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
       { name: 'score', type: 'json', label: 'Score Details' },
     ],
  },
+ {
+    type: 'translator',
+    name: 'Translator',
+    category: 'Extraction',
+    icon: '🌐',
+    color: CATEGORY_COLORS.Extraction,
+    description: 'Translate text between languages using offline Argos Translate models',
+    defaultConfig: { from_language: 'fr', to_language: 'en' },
+    backendType: 'translator',
+  },
 ];
 export function getNodeDefinition(type: string): NodeDefinition | undefined {
   const staticDefinition = NODE_DEFINITIONS.find((definition) => definition.type === type);
