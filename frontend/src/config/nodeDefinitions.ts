@@ -357,8 +357,16 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     { name: 'dimension', type: 'json', label: 'Vector Dimension', hidden: true },
   ],
 },
+{
+    type: 'router-agent',
+    name: 'Router Agent',
+    category: 'Logic/Conditions',
+    icon: '🧭',
+    color: CATEGORY_COLORS['Logic/Conditions'],
+    description: 'Choose which agents/tools execute a task plan, and in what order',
+    defaultConfig: { model: '' },
+  },
 ];
-
 export function getNodeDefinition(type: string): NodeDefinition | undefined {
   const staticDefinition = NODE_DEFINITIONS.find((definition) => definition.type === type);
   if (staticDefinition) {
