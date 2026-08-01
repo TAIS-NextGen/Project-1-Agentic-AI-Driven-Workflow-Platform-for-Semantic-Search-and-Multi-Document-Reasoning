@@ -432,7 +432,27 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
       { name: 'reasoning', type: 'text', label: 'Reasoning' },
     ],
   },
+  {
+    type: 'answer-generator',
+    name: 'Answer Generator Agent',
+    category: 'Extraction',
+    icon: '💬',
+    color: CATEGORY_COLORS.Extraction,
+    description: 'Produce the final readable answer from agent results and evidence',
+    defaultConfig: { model: '' },
+    backendType: 'answer-generator',
+    inputs: [
+      { name: 'question', type: 'text', label: 'Question', required: true },
+      { name: 'agent_results', type: 'json', label: 'Agent Results', required: true },
+      { name: 'evidence', type: 'json', label: 'Evidence', required: false },
+    ],
+    outputs: [
+      { name: 'answer', type: 'text', label: 'Final Answer' },
+      { name: 'confidence', type: 'text', label: 'Confidence' },
+    ],
+  },
 ];
+
 
 export function getNodeDefinition(type: string): NodeDefinition | undefined {
   const staticDefinition = NODE_DEFINITIONS.find((definition) => definition.type === type);
