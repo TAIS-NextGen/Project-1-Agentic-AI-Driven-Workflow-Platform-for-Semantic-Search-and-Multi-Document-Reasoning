@@ -6,22 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-import os
 
 from backend.api import nodes, workflows, documents
 from backend.settings import settings
-
-if settings.ocr_tesseract_path:
-    import pytesseract
-
-    pytesseract.pytesseract.tesseract_cmd = settings.ocr_tesseract_path
-
-    try:
-        import unstructured_pytesseract
-
-        unstructured_pytesseract.pytesseract.tesseract_cmd = settings.ocr_tesseract_path
-    except ImportError:
-        pass
 
 app = FastAPI(
     title=settings.app_name,
@@ -30,11 +17,14 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Ensure directories exist before mounting static files
-Path("data/uploads").mkdir(parents=True, exist_ok=True)
-Path("data/storage").mkdir(parents=True, exist_ok=True)
+# Ensure configured directories exist and expose them under stable public URLs.
+upload_dir = Path(settings.upload_dir)
+storage_dir = Path(settings.storage_dir)
+upload_dir.mkdir(parents=True, exist_ok=True)
+storage_dir.mkdir(parents=True, exist_ok=True)
 
-app.mount("/data", StaticFiles(directory="data"), name="data")
+app.mount("/data/uploads", StaticFiles(directory=upload_dir), name="uploads")
+app.mount("/data/storage", StaticFiles(directory=storage_dir), name="storage")
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,14 +1,13 @@
 {
   "name": "invoice_fr",
   "description": "Verification completude d'une facture (francais)",
-  "language": "fr",
   "fields": [
     {
       "key": "numero_facture",
       "label": "Numero de facture",
       "required": true,
       "severity": "CRITICAL",
-      "pattern": "[A-Z]{4}-\\d{4}-\\d{4}"
+      "pattern": "(?:N[°o]|Num[ée]ro|Facture)\\s*:?\\s*(\\w+[-/]?\\d+)"
     },
     {
       "key": "date",
@@ -22,28 +21,28 @@
       "label": "Montant total",
       "required": true,
       "severity": "CRITICAL",
-      "pattern": "Total\\s*(?:TTC|HT)\\s*:?\\s*(\\d[\\d\\s]*[.,]\\d{2})"
+      "pattern": "(\\d[\\d\\s]*[.,]?\\d*)\\s*(?:DT|€|EUR|TND|TTC)"
     },
     {
       "key": "tva",
       "label": "TVA",
       "required": false,
       "severity": "INFO",
-      "pattern": "(?:TVA|T\\.V\\.A)\\s*(?:\\(\\d+%\\))?\\s*:?\\s*(\\d[\\d\\s]*[.,]\\d{2})"
+      "pattern": "(?:TVA|T\\.V\\.A)\\s*:?\\s*(\\d[\\d\\s]*[.,]?\\d*)"
     },
     {
       "key": "fournisseur",
       "label": "Nom du fournisseur",
       "required": true,
       "severity": "CRITICAL",
-      "pattern": "(?:SARL|SAS|EURL|SA)\\s+([A-Z\\u00c0-\\u017f]{2,}(?:\\s+[A-Za-z\\u00c0-\\u017f&]+){1,6})"
+      "pattern": "(?:Fournisseur|Soci[ée]t[ée]|Raison sociale)\\s*:?\\s*([\\w\\s]{3,40})"
     },
     {
       "key": "client",
       "label": "Nom du client",
       "required": true,
       "severity": "WARNING",
-      "pattern": "Client\\s*:?\\s*([\\u00c0-\\u017fA-Z]{2,}(?:[\\s-][\\u00c0-\\u017fA-Za-z]+){1,5})"
+      "pattern": "(?:Client|Acheteur|Destinataire)\\s*:?\\s*([\\w\\s]{3,40})"
     }
   ]
 }

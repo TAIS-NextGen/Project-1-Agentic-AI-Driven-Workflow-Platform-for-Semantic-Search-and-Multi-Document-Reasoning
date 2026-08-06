@@ -1,5 +1,3 @@
-from typing import Any
-
 from fastapi import APIRouter, Depends
 
 from backend.runtime.executor import WorkflowExecutor
@@ -11,7 +9,16 @@ router = APIRouter(prefix="/api/workflows", tags=["Workflows"])
 
 
 def get_registry() -> NodeRegistry:
-    return NodeRegistry()
+    """Return a registry that is ready even when startup hooks were skipped.
+
+    This is important for direct API tests and for deployments that import the
+    router without triggering the nodes router startup event first. Discovery
+    is idempotent because registering the same type replaces the same class.
+    """
+    registry = NodeRegistry()
+    if registry.count == 0:
+        registry.discover("backend.nodes")
+    return registry
 
 
 @router.post("/execute", response_model=ExecuteWorkflowResponse)
@@ -42,7 +49,7 @@ async def execute_workflow(
 @router.post("/validate")
 async def validate_workflow(request: ExecuteWorkflowRequest):
     graph = WorkflowGraph.from_dict(request.model_dump())
-    registry = NodeRegistry()
+    registry = get_registry()
 
     executor = WorkflowExecutor(graph=graph, registry=registry)
     errors = executor.validate(mode=request.validate_mode or "strict")

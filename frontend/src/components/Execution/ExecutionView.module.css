@@ -359,3 +359,11 @@
   font-size: 13px;
   text-align: center;
 }
+
+:global(html[data-theme='light']) .container { background-color: #f4f7fb; }
+:global(html[data-theme='light']) .leftPanel { background: #ffffff; border-right-color: rgba(71,85,105,.13); }
+:global(html[data-theme='light']) .runStatusBar { background: #f8fafc; border-bottom-color: rgba(71,85,105,.1); }
+:global(html[data-theme='light']) .nodeStatusPanel { border-bottom-color: rgba(71,85,105,.1); }
+:global(html[data-theme='light']) .progressTrack { background: #e5eaf1; }
+:global(html[data-theme='light']) .runRow { background: #f8fafc; border-color: rgba(71,85,105,.11); }
+:global(html[data-theme='light']) .runRow:hover { background: #f1f5f9; }

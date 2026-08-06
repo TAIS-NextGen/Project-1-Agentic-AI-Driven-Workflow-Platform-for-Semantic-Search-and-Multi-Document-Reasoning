@@ -21,7 +21,12 @@ class Settings(BaseSettings):
     ocr_tesseract_path: str = ""
     ocr_languages: str = "eng+fra"
 
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
     model_config = {"env_prefix": "SYMPACT_", "env_file": ".env"}
 

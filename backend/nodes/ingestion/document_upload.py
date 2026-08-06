@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import mimetypes
 import os
 import uuid
@@ -98,7 +99,7 @@ class DocumentUploadNode(BaseNode):
 
     @staticmethod
     def _get_upload_dir() -> Path:
-        return Path(os.getenv("UPLOAD_DIR", "data/uploads"))
+        return Path(os.getenv("UPLOAD_DIR") or os.getenv("SYMPACT_UPLOAD_DIR") or "data/uploads")
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
         result = NodeResult(node_id=self.node_id)
@@ -174,8 +175,26 @@ class DocumentUploadNode(BaseNode):
         upload_dir = self._get_upload_dir()
         if not upload_dir.exists():
             return None
+        index_path = upload_dir / ".documents-index.json"
+        if index_path.exists():
+            try:
+                index = json.loads(index_path.read_text(encoding="utf-8"))
+                record = index.get(file_id) if isinstance(index, dict) else None
+                if record:
+                    file_path = Path(record.get("path", ""))
+                    if file_path.exists():
+                        return {
+                            "file_id": file_id,
+                            "filename": record.get("filename", file_path.name),
+                            "path": str(file_path),
+                            "size_bytes": record.get("size_bytes", file_path.stat().st_size),
+                            "mime_type": record.get("mime_type"),
+                        }
+            except (OSError, json.JSONDecodeError):
+                pass
+
         for f in upload_dir.iterdir():
-            if f.stem == file_id:
+            if f.is_file() and not f.name.startswith(".") and f.stem == file_id:
                 return {
                     "file_id": file_id,
                     "filename": f.name,

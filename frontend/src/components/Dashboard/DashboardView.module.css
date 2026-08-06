@@ -298,3 +298,9 @@
   padding-top: 12px;
   margin-top: auto;
 }
+
+:global(html[data-theme='light']) .container { background: #f4f7fb; }
+:global(html[data-theme='light']) .searchInput,
+:global(html[data-theme='light']) .filterInput { background: #ffffff; border-color: rgba(71,85,105,.14); }
+:global(html[data-theme='light']) .statIcon { background: #f8fafc; }
+:global(html[data-theme='light']) .wfGraphPreview { background: #eef2f7; border-bottom-color: rgba(71,85,105,.1); }
