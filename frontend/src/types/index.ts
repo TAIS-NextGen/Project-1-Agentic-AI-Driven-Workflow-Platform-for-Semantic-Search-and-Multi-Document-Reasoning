@@ -10,17 +10,6 @@ export interface SidebarUser {
   avatarUrl?: string;
 }
 
-export interface Workflow {
-  id: string;
-  name: string;
-  description?: string;
-  nodeCount: number;
-  runCount: number;
-  lastRunAt?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export type NodeStatus = 'idle' | 'running' | 'success' | 'error' | 'ready';
 
 export interface FlowNode {
@@ -37,6 +26,40 @@ export interface FlowEdge {
   target: string;
   sourcePort?: string;
   targetPort?: string;
+}
+
+export interface WorkflowViewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+export interface Workflow {
+  id: string;
+  name: string;
+  description?: string;
+  nodeCount: number;
+  runCount: number;
+  lastRunAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+  viewport: WorkflowViewport;
+}
+
+export interface DocumentRecord {
+  file_id: string;
+  filename: string;
+  relative_path?: string;
+  stored_name?: string;
+  size_bytes: number;
+  mime_type: string;
+  extension: string;
+  path?: string;
+  source: 'local' | 'cloud-url' | string;
+  uploaded_at: string;
+  download_url: string;
 }
 
 export interface CanvasViewport {

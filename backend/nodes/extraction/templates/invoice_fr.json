@@ -6,15 +6,13 @@
     {
       "key": "numero_facture",
       "label": "Numero de facture",
-      "description": "Le code apres 'Facture' et 'No:' sur la meme ligne. Ex: si le texte contient 'Facture No: FACT-2026-0842', extraire 'FACT-2026-0842'",
-      "pattern": "(?:N[°o]|Num[ée]ro|Facture)\\s*N?[°o]?:?\\s*([A-Za-z0-9]+(?:[-/][A-Za-z0-9]+)*)",
+      "description": "Numero ou reference de la facture (ex: FAC-2024-001, INV-1234, F2024-156)",
       "required": true
     },
     {
       "key": "date",
       "label": "Date de facturation",
       "description": "Date d'emission de la facture. Normaliser en YYYY-MM-DD.",
-      "pattern": "\\d{2}[/-]\\d{2}[/-]\\d{4}",
       "required": true
     },
     {
@@ -22,7 +20,6 @@
       "label": "Montant total",
       "description": "Montant total TTC en DT, EUR ou TND. Chiffre uniquement sans devise.",
       "type": "number",
-      "pattern": "(?:Total TTC|Total|Montant TTC)\\s*:?\\s*(\\d[\\d\\s]*[.,]\\d{2})",
       "required": true
     },
     {
@@ -30,21 +27,18 @@
       "label": "TVA",
       "description": "Taux ou montant de la TVA mentionne",
       "type": "number",
-      "pattern": "(?:TVA|T\\.V\\.A)\\s*(?:\\(\\d+%\\))?\\s*:?\\s*(\\d[\\d\\s]*[.,]\\d{2})",
       "required": false
     },
     {
       "key": "fournisseur",
       "label": "Nom du fournisseur",
-      "description": "Nom de la societe ou du fournisseur qui emet la facture. Se trouve generalement en haut du document.",
-      "pattern": "(?:SARL|SAS|EURL|SA)\\s+([A-Z\u00c0-\u017f]{2,}(?:\\s+[A-Za-z\u00c0-\u017f&]+){1,6})",
+      "description": "Nom de la societe ou du fournisseur qui emet la facture",
       "required": true
     },
     {
       "key": "client",
       "label": "Nom du client",
-      "description": "Nom du client ou de l'acheteur destine a recevoir la facture. Se trouve apres 'Client:'.",
-      "pattern": "Client\\s*:?\\s*([A-Z\u00c0-\u017f]{2,}(?:\\s+[A-Za-z\u00c0-\u017f-]+){1,5})",
+      "description": "Nom du client ou de l'acheteur destine a recevoir la facture",
       "required": true
     }
   ]

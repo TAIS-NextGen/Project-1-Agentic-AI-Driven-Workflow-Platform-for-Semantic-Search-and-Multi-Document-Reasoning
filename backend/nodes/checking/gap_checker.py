@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json as json_lib
+import os
+from pathlib import Path
 from typing import Any
 
 from backend.sdk import (
@@ -25,11 +27,11 @@ class GapCheckerNode(BaseNode):
 
     inputs = [
         Port(
-            name="text",
-            type=PortType.TEXT,
-            label="Text",
-            description="Texte extrait du document via OCR (provenant d'un noeud OCR en amont)",
-            required=True,
+            name="document",
+            type=PortType.DOCUMENT,
+            label="Document",
+            description="Document a analyser (PDF, image, texte)",
+            required=False,
         ),
     ]
 
@@ -56,21 +58,20 @@ class GapCheckerNode(BaseNode):
 
     config_fields = [
         ConfigField(
+            key="file_id",
+            label="File ID",
+            type="text",
+            required=False,
+            default="",
+            description="File ID from /api/documents/upload. If empty, expects document from upstream input.",
+        ),
+        ConfigField(
             key="template",
             label="Checklist Template",
             type="text",
             required=False,
             default="generic",
             description="Template name: generic, invoice_fr, claim_dossier",
-        ),
-        ConfigField(
-            key="language",
-            label="Language",
-            type="select",
-            required=False,
-            default="fr",
-            options=["fr", "en", "ar"],
-            description="Document language for LLM evaluation and regex patterns",
         ),
         ConfigField(
             key="strictness_threshold",
@@ -97,7 +98,19 @@ class GapCheckerNode(BaseNode):
             default="[]",
             description="Inline JSON checklist array (used instead of template if non-empty)",
         ),
+        ConfigField(
+            key="allowed_extensions",
+            label="Allowed Extensions",
+            type="tags",
+            required=False,
+            default=[".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".txt"],
+            description="Accepted file extensions",
+        ),
     ]
+
+    @staticmethod
+    def _get_upload_dir() -> Path:
+        return Path(os.getenv("UPLOAD_DIR", "data/uploads"))
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
         result = NodeResult(node_id=self.node_id)
@@ -105,14 +118,38 @@ class GapCheckerNode(BaseNode):
 
         try:
             config = self.get_resolved_config()
+            allowed_exts: list[str] = config.get("allowed_extensions", [])
             template = config.get("template", "generic")
-            language = config.get("language", "fr")
             threshold = float(config.get("strictness_threshold", 0.85))
             mode = config.get("evaluation_mode", "both")
 
-            text = ctx.get_input("text", "")
+            file_data: dict[str, Any] | None = ctx.get_input("document")
+
+            if not file_data:
+                file_id = config.get("file_id", "")
+                if not file_id:
+                    result.fail("No file provided via input port or 'file_id' config")
+                    return result
+                file_data = await self._resolve_by_file_id(file_id)
+                if not file_data:
+                    result.fail(f"File with ID '{file_id}' not found in upload directory")
+                    return result
+
+            file_path = Path(file_data["path"])
+            if not file_path.exists():
+                result.fail(f"File not found at path: {file_path}")
+                return result
+
+            original_name = file_data.get("filename", file_path.name)
+            ext = file_path.suffix.lower()
+            if ext not in allowed_exts:
+                result.fail(f"File extension '{ext}' not allowed. Allowed: {allowed_exts}")
+                return result
+
+            text = await self._extract_text(file_path, ext)
+
             if not text or not text.strip():
-                result.fail("No text provided. Connect an OCR node (OCR Node or Handwriting OCR) upstream.")
+                result.fail("Could not extract any text from the document")
                 return result
 
             service = GapCheckerService()
@@ -128,13 +165,13 @@ class GapCheckerNode(BaseNode):
                 checklist=checklist,
                 mode=mode,
                 threshold=threshold,
-                language=language,
             )
 
             result.succeed({
                 "report": {
                     "fields": gap_result["fields"],
                     "has_critical_gaps": gap_result["has_critical_gaps"],
+                    "filename": original_name,
                 },
                 "score": gap_result["score"],
                 "missing": gap_result["missing"],
@@ -144,3 +181,26 @@ class GapCheckerNode(BaseNode):
             result.fail(str(e))
 
         return result
+
+    async def _extract_text(self, file_path: Path, ext: str) -> str:
+        if ext == ".txt":
+            return file_path.read_text(encoding="utf-8", errors="replace")
+        from backend.services.ocr import OCRService
+
+        ocr = OCRService()
+        ocr_result = await ocr.extract_text(str(file_path))
+        return ocr_result.get("text", "")
+
+    async def _resolve_by_file_id(self, file_id: str) -> dict[str, Any] | None:
+        upload_dir = self._get_upload_dir()
+        if not upload_dir.exists():
+            return None
+        for f in upload_dir.iterdir():
+            if f.stem == file_id:
+                return {
+                    "file_id": file_id,
+                    "filename": f.name,
+                    "path": str(f),
+                    "size_bytes": f.stat().st_size,
+                }
+        return None

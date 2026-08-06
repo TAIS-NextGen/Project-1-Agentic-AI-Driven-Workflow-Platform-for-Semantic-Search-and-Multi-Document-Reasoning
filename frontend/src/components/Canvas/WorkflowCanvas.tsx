@@ -1,16 +1,33 @@
-import { useEffect, useState, useRef, type MouseEvent } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type MouseEvent,
+  type WheelEvent,
+} from 'react';
 import { useFlowStore } from '../../store/flowStore';
-import { useExecutionStore } from '../../store/executionStore';
+import { useWorkflowStore } from '../../store/workflowStore';
 import { NODE_DEFINITIONS, getNodeDefinition, type NodeDefinition } from '../../config/nodeDefinitions';
 import { NodeConfigPanel } from '../ConfigPanel/NodeConfigPanel';
 import { fetchBackendNodeDefinitions } from '../../services/backendApi';
+import type { AppTheme } from '../../App';
 import styles from './WorkflowCanvas.module.css';
 
 interface WorkflowCanvasProps {
   onRunWorkflow: (wfId: string, name: string) => void;
+  onBackToWorkflows: () => void;
+  theme: AppTheme;
+  onToggleTheme: () => void;
 }
 
-export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
+const NODE_WIDTH = 226;
+const NODE_HEIGHT = 118;
+const GRID_SIZE = 20;
+
+export function WorkflowCanvas({ onRunWorkflow, onBackToWorkflows, theme, onToggleTheme }: WorkflowCanvasProps) {
   const {
     nodes,
     edges,
@@ -22,75 +39,53 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
     connectNodes,
     deleteEdge,
     deleteNode,
-    setNodes,
-    setEdges,
     setViewport,
+    loadFlow,
     loadTemplate,
-    resetFlow
+    resetFlow,
   } = useFlowStore();
-
-  const { executionResults } = useExecutionStore();
-
-  const formatOutputPreview = (nodeId: string): string | null => {
-    if (!executionResults) return null;
-    const result = executionResults[nodeId];
-    if (!result || result.status !== 'success') return null;
-
-    const outputs = result.outputs;
-    if (!outputs || typeof outputs !== 'object') return null;
-
-    const lines: string[] = [];
-    for (const [key, value] of Object.entries(outputs)) {
-      if (typeof value === 'string' && value.length < 60) {
-        lines.push(key + ': ' + value.trim().slice(0, 40));
-      } else if (typeof value === 'number') {
-        lines.push(key + ': ' + value);
-      } else if (typeof value === 'object' && value !== null) {
-        const inner = value as Record<string, unknown>;
-        if (inner.polarity !== undefined || inner.score !== undefined) {
-          const parts = [inner.polarity, inner.score];
-          lines.push(parts.filter(Boolean).join(' '));
-        } else if (inner.confidence_score !== undefined) {
-          const flag = inner.is_supported ? '\u2713' : '\u2717';
-          const conf = Number(inner.confidence_score).toFixed(2);
-          lines.push(flag + ' supported, conf: ' + conf);
-        } else if (typeof inner.text === 'string') {
-          lines.push(inner.text.trim().slice(0, 50));
-        } else {
-          const keys = Object.keys(inner).slice(0, 2);
-          if (keys.length > 0) lines.push(keys.join(', '));
-        }
-      }
-      if (lines.length >= 3) break;
-    }
-
-    return lines.length > 0 ? lines.join(' \u00B7 ') : null;
-  };
 
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [nodeSearch, setNodeSearch] = useState('');
   const [backendNodes, setBackendNodes] = useState<NodeDefinition[]>([]);
-
-  const [connectionSource, setConnectionSource] = useState<{ nodeId: string; portName: string } | null>(null);
+  const [connectionSource, setConnectionSource] = useState<string | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const dropPosRef = useRef({ x: 100, y: 150 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [selectAll, setSelectAll] = useState(false);
-  const [clipboard, setClipboard] = useState<{ type: string; config: Record<string, unknown> } | null>(null);
-  const [undoStack, setUndoStack] = useState<{ nodes: typeof nodes; edges: typeof edges }[]>([]);
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  const [backendOnline, setBackendOnline] = useState<boolean | null>(null);
+  const [workflowName, setWorkflowName] = useState('Untitled Workflow');
+  const [saveState, setSaveState] = useState<'saved' | 'saving'>('saved');
 
-  const pushUndo = () => {
-    setUndoStack(prev => {
-      const next = [...prev, { nodes: [...nodes], edges: [...edges] }];
-      void undoStack;
-      return next.length > 50 ? next.slice(-50) : next;
-    });
-  };
+  const activeWorkflowId = useWorkflowStore((state) => state.activeWorkflowId);
+  const saveWorkflow = useWorkflowStore((state) => state.saveWorkflow);
+  const renameWorkflow = useWorkflowStore((state) => state.renameWorkflow);
+  const recordRun = useWorkflowStore((state) => state.recordRun);
+  const loadedWorkflowRef = useRef<string | null>(null);
 
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const draggedNodeRef = useRef<{ id: string; startX: number; startY: number } | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const draggedNodeRef = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
+
+  useEffect(() => {
+    if (!activeWorkflowId) return;
+    const workflow = useWorkflowStore.getState().workflows.find((item) => item.id === activeWorkflowId);
+    if (!workflow) return;
+    loadFlow(workflow.nodes || [], workflow.edges || [], workflow.viewport || { x: 0, y: 0, zoom: 1 });
+    setWorkflowName(workflow.name);
+    loadedWorkflowRef.current = activeWorkflowId;
+  }, [activeWorkflowId, loadFlow]);
+
+  useEffect(() => {
+    if (!activeWorkflowId || loadedWorkflowRef.current !== activeWorkflowId) return;
+    setSaveState('saving');
+    const timer = window.setTimeout(() => {
+      saveWorkflow(activeWorkflowId, { nodes, edges, viewport });
+      setSaveState('saved');
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [activeWorkflowId, edges, nodes, saveWorkflow, viewport]);
+
 
   useEffect(() => {
     let mounted = true;
@@ -98,11 +93,13 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
       .then((definitions) => {
         if (mounted) {
           setBackendNodes(definitions);
+          setBackendOnline(true);
         }
       })
       .catch(() => {
         if (mounted) {
           setBackendNodes([]);
+          setBackendOnline(false);
         }
       });
     return () => {
@@ -111,59 +108,110 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
   }, []);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         setConnectionSource(null);
+        selectNode(null);
+      }
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNodeId) {
+        const target = event.target as HTMLElement | null;
+        if (target?.matches('input, textarea, select')) return;
+        deleteNode(selectedNodeId);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [deleteNode, selectNode, selectedNodeId]);
 
-  const mergedNodes = [...NODE_DEFINITIONS, ...backendNodes.filter((nodeDefinition) => !NODE_DEFINITIONS.some((existing) => existing.type === nodeDefinition.type))];
+  const mergedNodes = useMemo(
+    () => [
+      ...NODE_DEFINITIONS,
+      ...backendNodes.filter(
+        (nodeDefinition) => !NODE_DEFINITIONS.some((existing) => existing.type === nodeDefinition.type),
+      ),
+    ],
+    [backendNodes],
+  );
 
-  const handleNodeMouseDown = (e: MouseEvent, nodeId: string) => {
-    if (e.target instanceof HTMLButtonElement || (e.target as HTMLElement).closest('.' + styles.port)) {
-      return;
-    }
-    e.stopPropagation();
-    setSelectAll(false);
-    setSelectedEdgeId(null);
-    selectNode(nodeId);
+  const definitionMap = useMemo(
+    () => new Map(mergedNodes.map((definition) => [definition.type, definition])),
+    [mergedNodes],
+  );
 
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return;
+  const getDefinition = (type: string) => definitionMap.get(type) || getNodeDefinition(type);
 
-    pushUndo();
-    draggedNodeRef.current = {
-      id: nodeId,
-      startX: e.clientX / viewport.zoom - node.position.x,
-      startY: e.clientY / viewport.zoom - node.position.y,
+  const categories = useMemo(
+    () => Array.from(new Set(mergedNodes.map((node) => node.category))),
+    [mergedNodes],
+  );
+
+  const filteredNodes = useMemo(() => {
+    const search = nodeSearch.trim().toLowerCase();
+    return mergedNodes.filter((node) => {
+      const matchesSearch = !search
+        || node.name.toLowerCase().includes(search)
+        || node.description?.toLowerCase().includes(search)
+        || node.type.toLowerCase().includes(search);
+      return matchesSearch && (!activeCategory || node.category === activeCategory);
+    });
+  }, [activeCategory, mergedNodes, nodeSearch]);
+
+  const toWorldCoordinates = (clientX: number, clientY: number) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: (clientX - rect.left - viewport.x) / viewport.zoom,
+      y: (clientY - rect.top - viewport.y) / viewport.zoom,
     };
   };
 
-  const handleCanvasMouseMove = (e: MouseEvent) => {
-    if (draggedNodeRef.current) {
-      const { id, startX, startY } = draggedNodeRef.current;
-      const x = Math.round(e.clientX / viewport.zoom - startX);
-      const y = Math.round(e.clientY / viewport.zoom - startY);
-      updateNodePosition(id, x, y);
+  const snap = (value: number) => (snapToGrid ? Math.round(value / GRID_SIZE) * GRID_SIZE : Math.round(value));
+
+  const addNodeAt = (type: string, position: { x: number; y: number }) => {
+    addNode(type, { x: snap(position.x), y: snap(position.y) });
+  };
+
+  const handleNodeMouseDown = (event: MouseEvent, nodeId: string) => {
+    if (
+      event.target instanceof HTMLButtonElement
+      || (event.target as HTMLElement).closest(`.${styles.port}`)
+    ) {
       return;
     }
 
-    if (connectionSource && canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      setMousePos({
-        x: (e.clientX - rect.left - viewport.x) / viewport.zoom,
-        y: (e.clientY - rect.top - viewport.y) / viewport.zoom,
-      });
+    event.stopPropagation();
+    selectNode(nodeId);
+    const node = nodes.find((candidate) => candidate.id === nodeId);
+    if (!node) return;
+
+    const world = toWorldCoordinates(event.clientX, event.clientY);
+    draggedNodeRef.current = {
+      id: nodeId,
+      offsetX: world.x - node.position.x,
+      offsetY: world.y - node.position.y,
+    };
+  };
+
+  const handleCanvasMouseMove = (event: MouseEvent) => {
+    if (draggedNodeRef.current) {
+      const world = toWorldCoordinates(event.clientX, event.clientY);
+      updateNodePosition(
+        draggedNodeRef.current.id,
+        snap(world.x - draggedNodeRef.current.offsetX),
+        snap(world.y - draggedNodeRef.current.offsetY),
+      );
+      return;
+    }
+
+    if (connectionSource) {
+      setMousePos(toWorldCoordinates(event.clientX, event.clientY));
       return;
     }
 
     if (isPanning) {
       setViewport({
-        x: e.clientX - panStart.x,
-        y: e.clientY - panStart.y,
+        x: event.clientX - panStart.x,
+        y: event.clientY - panStart.y,
         zoom: viewport.zoom,
       });
     }
@@ -172,45 +220,31 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
   const handleCanvasMouseUp = () => {
     draggedNodeRef.current = null;
     setIsPanning(false);
+    setConnectionSource(null);
   };
 
-  const handleCanvasMouseDown = (e: MouseEvent) => {
-    if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains(styles.gridLayer)) {
-      setSelectAll(false);
-      setSelectedEdgeId(null);
-      setConnectionSource(null);
+  const handleCanvasMouseDown = (event: MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (target === canvasRef.current || target.classList.contains(styles.gridLayer)) {
+      selectNode(null);
       setIsPanning(true);
-      setPanStart({
-        x: e.clientX - viewport.x,
-        y: e.clientY - viewport.y,
-      });
+      setPanStart({ x: event.clientX - viewport.x, y: event.clientY - viewport.y });
     }
   };
 
-  const handlePortMouseDown = (e: MouseEvent, nodeId: string, portName: string) => {
-    e.stopPropagation();
-
-    if (connectionSource && connectionSource.nodeId === nodeId && connectionSource.portName === portName) {
-      setConnectionSource(null);
-      return;
-    }
-
-    setConnectionSource({ nodeId, portName });
-
-    if (canvasRef.current) {
-      const rect = canvasRef.current.getBoundingClientRect();
-      setMousePos({
-        x: (e.clientX - rect.left - viewport.x) / viewport.zoom,
-        y: (e.clientY - rect.top - viewport.y) / viewport.zoom,
-      });
+  const handlePortMouseDown = (event: MouseEvent, nodeId: string) => {
+    event.stopPropagation();
+    setConnectionSource(nodeId);
+    const node = nodes.find((candidate) => candidate.id === nodeId);
+    if (node) {
+      setMousePos({ x: node.position.x + NODE_WIDTH, y: node.position.y + 46 });
     }
   };
 
-  const handlePortMouseUp = (e: MouseEvent, targetNodeId: string, targetPortName: string) => {
-    e.stopPropagation();
-    if (connectionSource && connectionSource.nodeId !== targetNodeId) {
-      pushUndo();
-      connectNodes(connectionSource.nodeId, connectionSource.portName, targetNodeId, targetPortName);
+  const handlePortMouseUp = (event: MouseEvent, targetNodeId: string) => {
+    event.stopPropagation();
+    if (connectionSource && connectionSource !== targetNodeId) {
+      connectNodes(connectionSource, targetNodeId);
     }
     setConnectionSource(null);
   };
@@ -218,168 +252,322 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
   const handleZoom = (factor: number) => {
     setViewport({
       ...viewport,
-      zoom: Math.min(Math.max(viewport.zoom * factor, 0.5), 1.8),
+      zoom: Math.min(Math.max(viewport.zoom * factor, 0.45), 2),
     });
   };
 
-  const getPortY = (nodeId: string, portName: string, isOutput: boolean) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (!node) return 0;
-    const def = getNodeDefinition(node.type);
-    const ports = isOutput ? (def?.outputs || []) : (def?.inputs || []);
-    const idx = ports.findIndex(p => p.name === portName);
-    return 35 + (idx >= 0 ? idx * 28 : 0) + 8;
+  const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!canvasRef.current) return;
+
+    if (!event.ctrlKey && !event.metaKey) {
+      setViewport({
+        ...viewport,
+        x: viewport.x - event.deltaX,
+        y: viewport.y - event.deltaY,
+      });
+      return;
+    }
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    const pointerX = event.clientX - rect.left;
+    const pointerY = event.clientY - rect.top;
+    const worldX = (pointerX - viewport.x) / viewport.zoom;
+    const worldY = (pointerY - viewport.y) / viewport.zoom;
+    const nextZoom = Math.min(Math.max(viewport.zoom * (event.deltaY > 0 ? 0.9 : 1.1), 0.45), 2);
+
+    setViewport({
+      zoom: nextZoom,
+      x: pointerX - worldX * nextZoom,
+      y: pointerY - worldY * nextZoom,
+    });
   };
 
-  const categories = Array.from(new Set(mergedNodes.map(n => n.category)));
-  const filteredNodes = mergedNodes.filter(
-    n =>
-      n.name.toLowerCase().includes(nodeSearch.toLowerCase()) &&
-      (!activeCategory || n.category === activeCategory)
-  );
+  const handlePaletteDragStart = (event: DragEvent<HTMLDivElement>, type: string) => {
+    event.dataTransfer.setData('application/x-flow-node', type);
+    event.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleCanvasDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const type = event.dataTransfer.getData('application/x-flow-node');
+    if (!type) return;
+    const world = toWorldCoordinates(event.clientX, event.clientY);
+    addNodeAt(type, { x: world.x - NODE_WIDTH / 2, y: world.y - 40 });
+  };
+
+  const autoLayout = () => {
+    if (!nodes.length) return;
+    const levels = new Map<string, number>();
+    const unresolved = new Set(nodes.map((node) => node.id));
+
+    for (let pass = 0; pass < nodes.length + 1 && unresolved.size; pass += 1) {
+      for (const nodeId of Array.from(unresolved)) {
+        const incoming = edges.filter((edge) => edge.target === nodeId);
+        if (!incoming.length) {
+          levels.set(nodeId, 0);
+          unresolved.delete(nodeId);
+          continue;
+        }
+        const parentLevels = incoming.map((edge) => levels.get(edge.source));
+        if (parentLevels.every((level) => level !== undefined)) {
+          levels.set(nodeId, Math.max(...(parentLevels as number[])) + 1);
+          unresolved.delete(nodeId);
+        }
+      }
+    }
+
+    unresolved.forEach((nodeId) => levels.set(nodeId, 0));
+    const grouped = new Map<number, string[]>();
+    nodes.forEach((node) => {
+      const level = levels.get(node.id) || 0;
+      grouped.set(level, [...(grouped.get(level) || []), node.id]);
+    });
+
+    grouped.forEach((ids, level) => {
+      ids.forEach((nodeId, index) => {
+        updateNodePosition(nodeId, 100 + level * 310, 100 + index * 180);
+      });
+    });
+    window.setTimeout(() => fitView(), 0);
+  };
+
+  const fitView = () => {
+    if (!canvasRef.current || !nodes.length) {
+      setViewport({ x: 0, y: 0, zoom: 1 });
+      return;
+    }
+    const rect = canvasRef.current.getBoundingClientRect();
+    const minX = Math.min(...nodes.map((node) => node.position.x));
+    const minY = Math.min(...nodes.map((node) => node.position.y));
+    const maxX = Math.max(...nodes.map((node) => node.position.x + NODE_WIDTH));
+    const maxY = Math.max(...nodes.map((node) => node.position.y + NODE_HEIGHT));
+    const width = Math.max(maxX - minX, 1);
+    const height = Math.max(maxY - minY, 1);
+    const padding = 90;
+    const zoom = Math.min(Math.max(Math.min((rect.width - padding * 2) / width, (rect.height - padding * 2) / height), 0.45), 1.35);
+    setViewport({
+      zoom,
+      x: (rect.width - width * zoom) / 2 - minX * zoom,
+      y: (rect.height - height * zoom) / 2 - minY * zoom,
+    });
+  };
+
 
   return (
     <div className={styles.wrapper}>
-      <aside className={styles.leftSidebar}>
-        <div className={styles.sidebarHeader}>
-          <h3>Nodes</h3>
-          <input
-            type="text"
-            placeholder="Search nodes..."
-            value={nodeSearch}
-            onChange={(e) => setNodeSearch(e.target.value)}
-            className={styles.nodeSearchInput}
-          />
-        </div>
+      <aside className={`${styles.leftSidebar} ${sidebarCollapsed ? styles.leftSidebarCollapsed : ''}`}>
+        <button
+          className={styles.sidebarToggle}
+          onClick={() => setSidebarCollapsed((value) => !value)}
+          title={sidebarCollapsed ? 'Open node library' : 'Collapse node library'}
+        >
+          {sidebarCollapsed ? '›' : '‹'}
+        </button>
 
-        <div className={styles.categoryPills}>
-          <button
-            className={`${styles.pill} ${!activeCategory ? styles.pillActive : ''}`}
-            onClick={() => setActiveCategory(null)}
-          >
-            All
-          </button>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              className={`${styles.pill} ${activeCategory === cat ? styles.pillActive : ''}`}
-              onClick={() => setActiveCategory(cat)}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        <div className={styles.nodeList}>
-          {filteredNodes.map(def => (
-            <div
-              key={def.type}
-              className={styles.sidebarNodeCard}
-              onClick={() => { pushUndo(); const pos = { x: dropPosRef.current.x + 30, y: dropPosRef.current.y + 30 }; dropPosRef.current = pos; addNode(def.type, pos); }}
-            >
-              <div className={styles.cardIndicator} style={{ backgroundColor: def.color }}></div>
-              <span className={styles.cardIcon}>{def.icon}</span>
-              <div>
-                <span className={styles.cardName}>{def.name}</span>
-                <span className={styles.cardDesc}>{def.description}</span>
+        {!sidebarCollapsed && (
+          <>
+            <div className={styles.sidebarHeader}>
+              <div className={styles.libraryTitle}>
+                <div>
+                  <span className={styles.eyebrow}>BUILD</span>
+                  <h3>Node library</h3>
+                </div>
+                <span className={`${styles.connectionBadge} ${backendOnline ? styles.online : styles.offline}`}>
+                  <i /> {backendOnline === null ? 'Loading' : backendOnline ? 'Backend' : 'Offline'}
+                </span>
+              </div>
+              <div className={styles.searchWrap}>
+                <span>⌕</span>
+                <input
+                  type="search"
+                  placeholder="Search by name or capability…"
+                  value={nodeSearch}
+                  onChange={(event) => setNodeSearch(event.target.value)}
+                  className={styles.nodeSearchInput}
+                />
+                {nodeSearch && <button onClick={() => setNodeSearch('')}>×</button>}
               </div>
             </div>
-          ))}
-        </div>
 
-        <div className={styles.templatesBlock}>
-          <h4>Load Template</h4>
-          <div className={styles.templateButtons}>
-            <button onClick={() => { pushUndo(); loadTemplate('invoice'); }} className="btn-secondary">Invoice OCR</button>
-            <button onClick={() => { pushUndo(); loadTemplate('rag'); }} className="btn-secondary">RAG Embeds</button>
-          </div>
-          <button onClick={() => { pushUndo(); resetFlow(); }} className={styles.clearBtn}>Clear Canvas</button>
-        </div>
+            <div className={styles.categoryPills}>
+              <button
+                className={`${styles.pill} ${!activeCategory ? styles.pillActive : ''}`}
+                onClick={() => setActiveCategory(null)}
+              >
+                All <span>{mergedNodes.length}</span>
+              </button>
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  className={`${styles.pill} ${activeCategory === category ? styles.pillActive : ''}`}
+                  onClick={() => setActiveCategory(category)}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.nodeList}>
+              <p className={styles.listHint}>Drag a node to the canvas or click it to add it.</p>
+              {filteredNodes.map((definition) => (
+                <div
+                  key={definition.type}
+                  className={styles.sidebarNodeCard}
+                  draggable
+                  onDragStart={(event) => handlePaletteDragStart(event, definition.type)}
+                  onClick={() => addNodeAt(definition.type, {
+                    x: 160 - viewport.x / viewport.zoom,
+                    y: 150 - viewport.y / viewport.zoom,
+                  })}
+                >
+                  <div className={styles.cardIconWrap} style={{ color: definition.color, background: `${definition.color}17` }}>
+                    <span>{definition.icon}</span>
+                  </div>
+                  <div className={styles.cardCopy}>
+                    <span className={styles.cardName}>{definition.name}</span>
+                    <span className={styles.cardDesc}>{definition.description}</span>
+                    <div className={styles.cardPorts}>
+                      <span>{definition.inputs?.[0]?.type || 'any'} in</span>
+                      <span>{definition.outputs?.[0]?.type || 'any'} out</span>
+                    </div>
+                  </div>
+                  <span className={styles.dragHandle}>⋮⋮</span>
+                </div>
+              ))}
+              {!filteredNodes.length && (
+                <div className={styles.noResults}>
+                  <span>⌕</span>
+                  <strong>No nodes found</strong>
+                  <button onClick={() => { setNodeSearch(''); setActiveCategory(null); }}>Reset filters</button>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.templatesBlock}>
+              <div className={styles.templatesHeader}>
+                <span>Starter workflows</span>
+                <small>1-click load</small>
+              </div>
+              <div className={styles.templateButtons}>
+                <button onClick={() => loadTemplate('invoice')}><span>🧾</span>Invoice OCR</button>
+                <button onClick={() => loadTemplate('enhance')}><span>☀️</span>Image cleanup</button>
+                <button onClick={() => loadTemplate('parser')}><span>📄</span>Parse documents</button>
+                <button onClick={() => loadTemplate('clustering')}><span>🧠</span>Topic clustering</button>
+                <button onClick={() => loadTemplate('comparison')}><span>⚖️</span>Compare documents</button>
+                <button onClick={() => loadTemplate('rag')}><span>🔎</span>RAG Search</button>
+              </div>
+            </div>
+          </>
+        )}
       </aside>
 
       <div className={styles.editorArea}>
         <header className={styles.toolbar}>
           <div className={styles.wfNameBlock}>
-            <h2>Invoice Processing Pipeline</h2>
-            <span className={styles.savedStatus}>Saved</span>
+            <button className={styles.backToHistory} onClick={onBackToWorkflows} title="Back to workflow history" aria-label="Back to workflow history">
+              <span aria-hidden="true">←</span>
+            </button>
+            <div className={styles.workflowIcon} aria-hidden="true">⌘</div>
+            <div className={styles.workflowIdentity}>
+              <div className={styles.titleLine}>
+                <input
+                  className={styles.workflowNameInput}
+                  value={workflowName}
+                  onChange={(event) => {
+                    setWorkflowName(event.target.value);
+                    setSaveState('saving');
+                  }}
+                  onBlur={() => {
+                    if (!activeWorkflowId) return;
+                    const cleanedName = workflowName.trim() || 'New workflow';
+                    setWorkflowName(cleanedName);
+                    renameWorkflow(activeWorkflowId, cleanedName);
+                    setSaveState('saved');
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') event.currentTarget.blur();
+                  }}
+                  aria-label="Workflow name"
+                  title="Click to rename"
+                />
+                <span className={`${styles.savedStatus} ${saveState === 'saving' ? styles.savingStatus : ''}`}>
+                  <i /> {saveState === 'saving' ? 'Saving…' : 'Saved'}
+                </span>
+              </div>
+              <div className={styles.workflowMeta}>
+                <span>{nodes.length} node{nodes.length === 1 ? '' : 's'}</span>
+                <span>{edges.length} connection{edges.length === 1 ? '' : 's'}</span>
+                <span>{Math.round(viewport.zoom * 100)}% zoom</span>
+              </div>
+            </div>
           </div>
+
           <div className={styles.toolbarActions}>
-            <button className="btn-secondary">Versions</button>
-            <button className="btn-secondary">Share</button>
+            <div className={styles.toolGroup} aria-label="Canvas tools">
+              <button
+                onClick={() => setSnapToGrid((value) => !value)}
+                className={snapToGrid ? styles.toolActive : ''}
+                title="Toggle snap to grid"
+                aria-pressed={snapToGrid}
+              >
+                <span className={styles.toolIcon}>#</span><span>Snap</span>
+              </button>
+              <button onClick={autoLayout} title="Automatically arrange nodes">
+                <span className={styles.toolIcon}>⌁</span><span>Arrange</span>
+              </button>
+              <button onClick={fitView} title="Fit all nodes in view">
+                <span className={styles.toolIcon}>⛶</span><span>Fit</span>
+              </button>
+            </div>
+
+            <div className={styles.toolGroup} aria-label="Workspace actions">
+              <button
+                onClick={onToggleTheme}
+                title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+                aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              >
+                <span className={styles.toolIcon}>{theme === 'light' ? '☀' : '◐'}</span><span>Theme</span>
+              </button>
+              <button
+                onClick={() => {
+                  if (!nodes.length || window.confirm('Clear all nodes and connections from this workflow?')) resetFlow();
+                }}
+                className={styles.dangerAction}
+                title="Clear workflow"
+              >
+                <span className={styles.toolIcon}>⌫</span><span>Clear</span>
+              </button>
+            </div>
+
             <button
-              onClick={() => onRunWorkflow('wf-1', 'Invoice Processing Pipeline')}
-              className="btn-premium"
+              onClick={() => {
+                if (!activeWorkflowId) return;
+                saveWorkflow(activeWorkflowId, { nodes, edges, viewport });
+                setSaveState('saved');
+                recordRun(activeWorkflowId);
+                onRunWorkflow(activeWorkflowId, workflowName);
+              }}
+              className={styles.runButton}
+              disabled={!nodes.length}
             >
-              🚀 Run Workflow
+              <span className={styles.runIcon}>▶</span>
+              <span className={styles.runCopy}><strong>Run workflow</strong><small>{nodes.length ? `${nodes.length} nodes ready` : 'Add a node first'}</small></span>
             </button>
           </div>
         </header>
-
         <div
           ref={canvasRef}
           className={styles.canvasContainer}
-          tabIndex={0}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
+          onMouseLeave={handleCanvasMouseUp}
           onMouseDown={handleCanvasMouseDown}
-          onKeyDown={(e) => {
-            if (e.ctrlKey && e.key === 'z') {
-              e.preventDefault();
-              setUndoStack(prev => {
-                if (prev.length === 0) return prev;
-                const snapshot = prev[prev.length - 1];
-                setNodes([...snapshot.nodes]);
-                setEdges([...snapshot.edges]);
-                selectNode(null);
-                setSelectedEdgeId(null);
-                setSelectAll(false);
-                return prev.slice(0, -1);
-              });
-            } else if (e.key === 'Delete' || e.key === 'Backspace') {
-              e.preventDefault();
-              if (selectedEdgeId) {
-                pushUndo();
-                deleteEdge(selectedEdgeId);
-                setSelectedEdgeId(null);
-              } else if (selectAll) {
-                pushUndo();
-                setNodes([]);
-                setEdges([]);
-                setSelectAll(false);
-                selectNode(null);
-              } else if (selectedNodeId) {
-                pushUndo();
-                deleteNode(selectedNodeId);
-                selectNode(null);
-              }
-            } else if (e.ctrlKey && e.key === 'c') {
-              e.preventDefault();
-              const node = nodes.find(n => n.id === selectedNodeId);
-              if (node) setClipboard({ type: node.type, config: { ...node.config } });
-            } else if (e.ctrlKey && e.key === 'v') {
-              e.preventDefault();
-              if (clipboard) {
-                pushUndo();
-                addNode(clipboard.type, { x: mousePos.x, y: mousePos.y });
-              }
-            } else if (e.ctrlKey && e.key === 'd') {
-              e.preventDefault();
-              const node = nodes.find(n => n.id === selectedNodeId);
-              if (node) {
-                pushUndo();
-                addNode(node.type, { x: node.position.x + 40, y: node.position.y + 40 });
-              }
-            } else if (e.ctrlKey && e.key === 'a') {
-              e.preventDefault();
-              setSelectAll(true);
-            } else if (e.key === 'Escape') {
-              selectNode(null);
-              setConnectionSource(null);
-              setSelectAll(false);
-              setSelectedEdgeId(null);
-            }
-          }}
+          onWheel={handleWheel}
+          onDrop={handleCanvasDrop}
+          onDragOver={(event) => event.preventDefault()}
         >
+          <div className={styles.canvasGlow} />
           <svg
             className={styles.svgOverlay}
             style={{
@@ -387,64 +575,60 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
               transformOrigin: '0 0',
             }}
           >
+            <defs>
+              <linearGradient id="wire-gradient" x1="0" x2="1">
+                <stop offset="0%" stopColor="#8b5cf6" />
+                <stop offset="100%" stopColor="#22d3ee" />
+              </linearGradient>
+              <filter id="wire-glow">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                <feMerge><feMergeNode in="coloredBlur" /><feMergeNode in="SourceGraphic" /></feMerge>
+              </filter>
+            </defs>
             {edges.map((edge) => {
-              const srcNode = nodes.find(n => n.id === edge.source);
-              const tgtNode = nodes.find(n => n.id === edge.target);
+              const sourceNode = nodes.find((node) => node.id === edge.source);
+              const targetNode = nodes.find((node) => node.id === edge.target);
+              if (!sourceNode || !targetNode) return null;
 
-              if (!srcNode || !tgtNode) return null;
-
-              const x1 = srcNode.position.x + 200;
-              const y1 = srcNode.position.y + getPortY(srcNode.id, edge.sourcePort || 'output', true);
-              const x2 = tgtNode.position.x;
-              const y2 = tgtNode.position.y + getPortY(tgtNode.id, edge.targetPort || 'input', false);
-
-              const cx1 = x1 + Math.abs(x2 - x1) * 0.4;
-              const cy1 = y1;
-              const cx2 = x2 - Math.abs(x2 - x1) * 0.4;
-              const cy2 = y2;
+              const x1 = sourceNode.position.x + NODE_WIDTH;
+              const y1 = sourceNode.position.y + 46;
+              const x2 = targetNode.position.x;
+              const y2 = targetNode.position.y + 46;
+              const controlOffset = Math.max(70, Math.abs(x2 - x1) * 0.42);
+              const path = `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`;
 
               return (
-                <g key={edge.id} className={`${styles.wireGroup} ${selectedEdgeId === edge.id ? styles.wireSelected : ''}`}>
-                  <path
-                    d={`M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`}
-                    className={styles.wire}
+                <g key={edge.id} className={styles.wireGroup}>
+                  <path d={path} className={styles.wireShadow} />
+                  <path d={path} className={styles.wire} />
+                  <path d={path} className={styles.wireHotspot} onClick={() => deleteEdge(edge.id)} />
+                  <circle
+                    cx={(x1 + x2) / 2}
+                    cy={(y1 + y2) / 2}
+                    r="8"
+                    className={styles.wireDeleteNode}
+                    onClick={() => deleteEdge(edge.id)}
                   />
-                  <path
-                    d={`M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`}
-                    className={styles.wireHotspot}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedEdgeId(edge.id);
-                      selectNode(null);
-                      setSelectAll(false);
-                    }}
-                  />
-                  <circle cx={(x1+x2)/2} cy={(y1+y2)/2} r="6" className={styles.wireDeleteNode} onClick={() => { pushUndo(); deleteEdge(edge.id); }} />
+                  <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 + 3} className={styles.wireDeleteText}>×</text>
                 </g>
               );
             })}
 
-            {connectionSource && (
-              (() => {
-                const srcNode = nodes.find(n => n.id === connectionSource.nodeId);
-                if (!srcNode) return null;
-                const x1 = srcNode.position.x + 200;
-                const y1 = srcNode.position.y + getPortY(srcNode.id, connectionSource.portName, true);
-                const x2 = mousePos.x;
-                const y2 = mousePos.y;
-                const cx1 = x1 + Math.abs(x2 - x1) * 0.4;
-                const cy1 = y1;
-                const cx2 = x2 - Math.abs(x2 - x1) * 0.4;
-                const cy2 = y2;
-
-                return (
-                  <path
-                    d={`M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`}
-                    className={`${styles.wire} ${styles.wirePreview}`}
-                  />
-                );
-              })()
-            )}
+            {connectionSource && (() => {
+              const sourceNode = nodes.find((node) => node.id === connectionSource);
+              if (!sourceNode) return null;
+              const x1 = sourceNode.position.x + NODE_WIDTH;
+              const y1 = sourceNode.position.y + 46;
+              const x2 = mousePos.x;
+              const y2 = mousePos.y;
+              const offset = Math.max(70, Math.abs(x2 - x1) * 0.42);
+              return (
+                <path
+                  d={`M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}`}
+                  className={`${styles.wire} ${styles.wirePreview}`}
+                />
+              );
+            })()}
           </svg>
 
           <div
@@ -452,89 +636,59 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
             style={{
               transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
               transformOrigin: '0 0',
-              backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
-              backgroundSize: '20px 20px',
+              backgroundPosition: `${-GRID_SIZE / 2}px ${-GRID_SIZE / 2}px`,
             }}
           >
             {nodes.map((node) => {
-              const definition = getNodeDefinition(node.type);
-              const isSelected = selectedNodeId === node.id || selectAll;
-
+              const definition = getDefinition(node.type);
+              const isSelected = selectedNodeId === node.id;
               if (!definition) return null;
+              const primaryInput = definition.inputs?.[0];
+              const primaryOutput = definition.outputs?.[0];
 
               return (
                 <div
                   key={node.id}
-                  className={`${styles.nodeCard} ${isSelected ? styles.nodeSelected : ''}`}
+                  className={`${styles.nodeCard} ${isSelected ? styles.nodeSelected : ''} ${styles[`status_${node.status}`] || ''}`}
                   style={{
                     left: `${node.position.x}px`,
                     top: `${node.position.y}px`,
-                    minHeight: `${35 + Math.max(
-                      (definition.inputs?.length || 1),
-                      (definition.outputs?.length || 1),
-                    ) * 28 + 20}px`,
-                    borderColor: isSelected ? definition.color : 'rgba(255, 255, 255, 0.05)',
-                    boxShadow: isSelected ? `0 0 20px ${definition.color}33` : undefined,
-                  }}
-                  onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
+                    '--node-color': definition.color,
+                  } as CSSProperties}
+                  onMouseDown={(event) => handleNodeMouseDown(event, node.id)}
+                  onDoubleClick={() => selectNode(node.id)}
                 >
-                  {(definition.inputs && definition.inputs.length > 0
-                    ? definition.inputs.map((input, idx) => (
-                        <div
-                          key={`in-${input.name}`}
-                          className={`${styles.port} ${styles.portInput}`}
-                          style={{ top: `${35 + idx * 28}px` }}
-                          onMouseUp={(e) => handlePortMouseUp(e, node.id, input.name!)}
-                          title={`${input.label || input.name} (${input.type || 'any'})`}
-                        >
-                          <span className={styles.portDot}></span>
-                        </div>
-                      ))
-                    : (
-                      <div
-                        className={`${styles.port} ${styles.portInput}`}
-                        onMouseUp={(e) => handlePortMouseUp(e, node.id, 'input')}
-                        title="Input port"
-                      >
-                        <span className={styles.portDot}></span>
-                      </div>
-                    )
-                  )}
+                  <div
+                    className={`${styles.port} ${styles.portInput}`}
+                    onMouseUp={(event) => handlePortMouseUp(event, node.id)}
+                    title={`${primaryInput?.label || 'Input'} · ${primaryInput?.type || 'any'}`}
+                  >
+                    <span className={styles.portDot} />
+                    <span className={styles.portLabel}>{primaryInput?.type || 'in'}</span>
+                  </div>
 
-                  {(definition.outputs && definition.outputs.length > 0
-                    ? definition.outputs.map((output, idx) => (
-                        <div
-                          key={`out-${output.name}`}
-                          className={`${styles.port} ${styles.portOutput}`}
-                          style={{ top: `${35 + idx * 28}px` }}
-                          onMouseDown={(e) => handlePortMouseDown(e, node.id, output.name!)}
-                          title={`${output.label || output.name} (${output.type || 'any'})`}
-                        >
-                          <span className={styles.portDot}></span>
-                        </div>
-                      ))
-                    : (
-                      <div
-                        className={`${styles.port} ${styles.portOutput}`}
-                        onMouseDown={(e) => handlePortMouseDown(e, node.id, 'output')}
-                        title="Output port"
-                      >
-                        <span className={styles.portDot}></span>
-                      </div>
-                    )
-                  )}
+                  <div
+                    className={`${styles.port} ${styles.portOutput}`}
+                    onMouseDown={(event) => handlePortMouseDown(event, node.id)}
+                    title={`${primaryOutput?.label || 'Output'} · ${primaryOutput?.type || 'any'}`}
+                  >
+                    <span className={styles.portLabel}>{primaryOutput?.type || 'out'}</span>
+                    <span className={styles.portDot} />
+                  </div>
 
-                  <div className={styles.nodeHeader} style={{ background: `linear-gradient(90deg, ${definition.color}15 0%, transparent 100%)` }}>
-                    <span className={styles.nodeIcon}>{definition.icon}</span>
-                    <div>
-                      <h4 className={styles.nodeName}>{definition.name}</h4>
-                      <span className={styles.nodeCat}>{definition.category}</span>
+                  <div className={styles.nodeAccent} />
+                  <div className={styles.nodeHeader}>
+                    <div className={styles.nodeIcon} style={{ background: `${definition.color}18`, color: definition.color }}>
+                      {definition.icon}
+                    </div>
+                    <div className={styles.nodeTitle}>
+                      <h4>{definition.name}</h4>
+                      <span>{definition.category}</span>
                     </div>
                     <button
                       className={styles.deleteNodeBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        pushUndo();
+                      onClick={(event) => {
+                        event.stopPropagation();
                         deleteNode(node.id);
                       }}
                       title="Delete node"
@@ -544,25 +698,60 @@ export function WorkflowCanvas({ onRunWorkflow }: WorkflowCanvasProps) {
                   </div>
 
                   <div className={styles.nodeContent}>
-                    <span className={`${styles.nodeStatusBadge} ${styles[node.status]}`}>
-                      {node.status}
-                    </span>
-                    {(() => {
-                      const preview = formatOutputPreview(node.id);
-                      return preview ? <div className={styles.nodeOutputPreview}>{preview}</div> : null;
-                    })()}
+                    <p>{definition.description}</p>
+                    <div className={styles.nodeFooter}>
+                      <span className={`${styles.nodeStatusBadge} ${styles[node.status]}`}>
+                        <i /> {node.status}
+                      </span>
+                      <span className={styles.configCount}>{Object.keys(node.config || {}).length} settings</span>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
-        </div>
 
-        <div className={styles.viewportControls}>
-          <button onClick={() => handleZoom(1.25)} title="Zoom In">+</button>
-          <span>{Math.round(viewport.zoom * 100)}%</span>
-          <button onClick={() => handleZoom(0.8)} title="Zoom Out">-</button>
-          <button onClick={() => setViewport({ x: 0, y: 0, zoom: 1 })} title="Reset View">⟲</button>
+          {!nodes.length && (
+            <div className={styles.emptyCanvas}>
+              <div className={styles.emptyIcon}>＋</div>
+              <h3>Build your document workflow</h3>
+              <p>Drag nodes from the library, connect their ports, configure them and run the pipeline.</p>
+              <button onClick={() => loadTemplate('invoice')}>Load invoice starter</button>
+            </div>
+          )}
+
+          <div className={styles.canvasHelp}>
+            <span><kbd>Drag</kbd> move</span>
+            <span><kbd>Ctrl</kbd> + wheel zoom</span>
+            <span><kbd>Del</kbd> remove</span>
+          </div>
+
+          <div className={styles.minimap}>
+            <div className={styles.minimapHeader}><span>MINIMAP</span><small>{nodes.length}</small></div>
+            <div className={styles.minimapCanvas}>
+              {nodes.map((node) => {
+                const definition = getDefinition(node.type);
+                return (
+                  <span
+                    key={node.id}
+                    style={{
+                      left: `${Math.max(2, Math.min(92, node.position.x / 16))}%`,
+                      top: `${Math.max(3, Math.min(84, node.position.y / 12))}%`,
+                      background: definition?.color,
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={styles.viewportControls}>
+            <button onClick={() => handleZoom(0.85)} title="Zoom out">−</button>
+            <button className={styles.zoomValue} onClick={() => setViewport({ ...viewport, zoom: 1 })}>{Math.round(viewport.zoom * 100)}%</button>
+            <button onClick={() => handleZoom(1.18)} title="Zoom in">＋</button>
+            <i />
+            <button onClick={fitView} title="Fit view">⛶</button>
+          </div>
         </div>
       </div>
 

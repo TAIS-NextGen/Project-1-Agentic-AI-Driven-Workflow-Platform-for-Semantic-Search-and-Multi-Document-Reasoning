@@ -11,4 +11,91 @@
   display: flex;
   overflow: hidden;
   position: relative;
+  min-width: 0;
+}
+
+.settingsPage {
+  flex: 1;
+  overflow-y: auto;
+  padding: clamp(28px, 5vw, 56px);
+  background:
+    radial-gradient(circle at 90% 0%, hsla(var(--color-primary), 0.1), transparent 30%),
+    var(--bg-deep);
+}
+
+.settingsHeader span {
+  color: hsl(var(--color-primary));
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+.settingsHeader h1 {
+  margin: 8px 0 7px;
+  font-size: 30px;
+  letter-spacing: -.04em;
+}
+
+.settingsHeader p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.settingsCard {
+  width: min(760px, 100%);
+  margin-top: 32px;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  border: 1px solid var(--surface-border);
+  border-radius: 18px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-card);
+}
+
+.settingsIcon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: hsl(var(--color-primary));
+  background: hsla(var(--color-primary), .1);
+  border: 1px solid hsla(var(--color-primary), .2);
+  font-size: 22px;
+}
+
+.settingsCopy h2 { margin: 0 0 6px; font-size: 16px; }
+.settingsCopy p { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.55; }
+
+.themeChoice {
+  min-width: 165px;
+  padding: 11px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  border: 1px solid var(--surface-border-strong);
+  border-radius: 11px;
+  color: var(--text-main);
+  background: var(--surface-soft);
+  cursor: pointer;
+  transition: 160ms ease;
+}
+
+.themeChoice:hover {
+  transform: translateY(-1px);
+  border-color: hsla(var(--color-primary), .45);
+  box-shadow: 0 10px 25px hsla(var(--color-primary), .1);
+}
+
+.themeChoice span { font-size: 12px; font-weight: 700; }
+.themeChoice strong { color: var(--text-muted); font-size: 9px; font-weight: 500; }
+
+@media (max-width: 720px) {
+  .settingsCard { grid-template-columns: auto 1fr; }
+  .themeChoice { grid-column: 1 / -1; width: 100%; }
 }

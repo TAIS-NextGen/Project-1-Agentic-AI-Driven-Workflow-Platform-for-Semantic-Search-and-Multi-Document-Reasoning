@@ -1,10 +1,13 @@
+import type { AppTheme } from '../../App';
 import styles from './LandingPage.module.css';
 
 interface LandingPageProps {
   onStart: () => void;
+  theme: AppTheme;
+  onToggleTheme: () => void;
 }
 
-export function LandingPage({ onStart }: LandingPageProps) {
+export function LandingPage({ onStart, theme, onToggleTheme }: LandingPageProps) {
   return (
     <div className={styles.container}>
       {/* Decorative background glows */}
@@ -21,17 +24,28 @@ export function LandingPage({ onStart }: LandingPageProps) {
           </div>
           <span className={styles.logoText}>FlowDocs</span>
         </div>
-        <button onClick={onStart} className="btn-secondary">Launch App</button>
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            className={styles.themeToggle}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? '☀' : '◐'}
+          </button>
+          <button onClick={onStart} className="btn-secondary">Launch App</button>
+        </div>
       </header>
 
       <main className={styles.heroSection}>
         <div className={styles.heroContent}>
-          <div className={styles.badge}>Next-Gen AI Orchestrator</div>
+          <div className={styles.badge}>Visual document automation</div>
           <h1 className={styles.title}>
-            Orchestrate <span className={styles.gradientText}>Agentic Workflows</span> for Document Reasonings
+            Build <span className={styles.gradientText}>intelligent workflows</span> for your documents
           </h1>
           <p className={styles.subtitle}>
-            An AI-driven platform for semantic search, multi-document reasoning, multi-language handwriting OCR, and dynamic document classifiers.
+            Connect parsing, masking, comparison, clustering, extraction and AI reasoning in one clear visual workspace.
           </p>
           <div className={styles.ctaGroup}>
             <button onClick={onStart} className="btn-premium">
@@ -109,7 +123,7 @@ export function LandingPage({ onStart }: LandingPageProps) {
       </section>
 
       <footer className={styles.footer}>
-        <p>© 2026 FlowDocs Corp. Built with Google Antigravity IDE.</p>
+        <p>© 2026 FlowDocs. Visual document workflow workspace.</p>
       </footer>
     </div>
   );

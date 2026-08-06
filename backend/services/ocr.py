@@ -61,12 +61,6 @@ class TesseractOCRService:
 
     def __init__(self, lang: str = "eng"):
         self.lang = lang
-        from backend.settings import settings
-
-        if settings.ocr_tesseract_path:
-            import pytesseract
-
-            pytesseract.pytesseract.tesseract_cmd = settings.ocr_tesseract_path
 
     async def extract_text(
         self, image_path: str | Path, lang: str | None = None

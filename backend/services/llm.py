@@ -79,45 +79,6 @@ class LLMService:
             logger.error(f"LLMService.generate() failed: {e}")
             raise
 
-    async def generate_with_image(
-        self,
-        prompt: str,
-        image_path: str,
-        system_prompt: str = "",
-        max_tokens: int = 1024,
-    ) -> str:
-        import base64
-        from pathlib import Path
-
-        ext = Path(image_path).suffix.lower()
-        mime = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
-
-        with open(image_path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-
-        client = self._get_client()
-        messages: list[dict[str, Any]] = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({
-            "role": "user",
-            "content": [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
-            ],
-        })
-
-        try:
-            response = await client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=max_tokens,
-            )
-            return response.choices[0].message.content or ""
-        except Exception as e:
-            logger.error(f"LLMService.generate_with_image() failed: {e}")
-            raise
-
     async def generate_with_tools(
         self,
         prompt: str,

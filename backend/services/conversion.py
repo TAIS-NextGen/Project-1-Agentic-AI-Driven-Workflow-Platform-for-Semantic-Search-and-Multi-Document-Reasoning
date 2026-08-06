@@ -84,6 +84,7 @@ class FileConversionService:
 
         if ext == ".docx":
             return await self._extract_docx_text(input_path)
+
         raise ValueError(f"Text extraction not supported for extension: {ext}")
 
     async def _extract_docx_text(self, input_path: Path) -> dict[str, Any]:

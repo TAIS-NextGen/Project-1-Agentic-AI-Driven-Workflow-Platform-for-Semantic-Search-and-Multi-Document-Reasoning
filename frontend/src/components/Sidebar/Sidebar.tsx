@@ -1,12 +1,16 @@
 import type { ReactNode } from 'react';
 import { useWorkflowStore } from '../../store/workflowStore';
+import { useFlowStore } from '../../store/flowStore';
 import type { AppRoute, SidebarUser } from '../../types';
+import type { AppTheme } from '../../App';
 import styles from './Sidebar.module.css';
 
 export interface SidebarProps {
   activeRoute: AppRoute;
   onNavigate: (route: AppRoute) => void;
   user?: SidebarUser;
+  theme: AppTheme;
+  onToggleTheme: () => void;
 }
 
 interface NavItemConfig {
@@ -84,25 +88,49 @@ function getInitials(name: string): string {
     .join('');
 }
 
-export function Sidebar({ activeRoute, onNavigate, user = DEFAULT_USER }: SidebarProps) {
+export function Sidebar({ activeRoute, onNavigate, user = DEFAULT_USER, theme, onToggleTheme }: SidebarProps) {
   const createWorkflow = useWorkflowStore((state) => state.createWorkflow);
+  const setActiveWorkflow = useWorkflowStore((state) => state.setActiveWorkflow);
+  const resetFlow = useFlowStore((state) => state.resetFlow);
 
   const handleNewWorkflow = () => {
+    resetFlow();
     createWorkflow();
     onNavigate('workflows');
+  };
+
+  const handleNavigation = (route: AppRoute) => {
+    if (route === 'workflows') {
+      setActiveWorkflow(null);
+    }
+    onNavigate(route);
   };
 
   return (
     <aside className={styles.sidebar} aria-label="Main navigation">
       {/* Logo */}
       <div className={styles.header}>
-        <div className={styles.logoMark} aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
-            <path d="M3 4.5H10.5M3 8H8M3 11.5H10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M11.5 6.5L13.5 8L11.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
+        <div className={styles.brand}>
+          <div className={styles.logoMark} aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
+              <path d="M3 4.5H10.5M3 8H8M3 11.5H10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              <path d="M11.5 6.5L13.5 8L11.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className={styles.brandCopy}>
+            <span className={styles.logoText}>FlowDocs</span>
+            <small>Document workspace</small>
+          </div>
         </div>
-        <span className={styles.logoText}>FlowDocs</span>
+        <button
+          type="button"
+          className={styles.themeToggle}
+          onClick={onToggleTheme}
+          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+        >
+          {theme === 'light' ? '☀' : '◐'}
+        </button>
       </div>
 
       {/* New Workflow CTA */}
@@ -122,7 +150,7 @@ export function Sidebar({ activeRoute, onNavigate, user = DEFAULT_USER }: Sideba
               key={item.route}
               type="button"
               className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
-              onClick={() => onNavigate(item.route)}
+              onClick={() => handleNavigation(item.route)}
               aria-current={isActive ? 'page' : undefined}
             >
               <span className={styles.navIcon}>{item.icon}</span>
