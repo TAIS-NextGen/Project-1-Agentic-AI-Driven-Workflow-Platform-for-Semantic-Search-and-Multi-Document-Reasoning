@@ -84,6 +84,14 @@ class SemanticExtractorNode(BaseNode):
             default="[]",
             description="Inline JSON array of fields to extract. Used when document_type='custom'. Each field: {key, label, description, type?}. E.g. [{\"key\": \"date\", \"label\": \"Date\", \"description\": \"Document date\"}]",
         ),
+        ConfigField(
+            key="text",
+            label="Text",
+            type="text",
+            required=False,
+            default="",
+            description="Text to extract fields from. Leave empty if provided via upstream connection (OCR, parser, etc.).",
+        ),
     ]
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
@@ -95,7 +103,7 @@ class SemanticExtractorNode(BaseNode):
             document_type = config.get("document_type", "generic")
             language = config.get("language", "fr")
 
-            text = ctx.get_input("text", "")
+            text = ctx.get_input("text", "") or str(config.get("text", ""))
             if not isinstance(text, str) or not text.strip():
                 file_id = config.get("file_id", "")
                 if not file_id:
