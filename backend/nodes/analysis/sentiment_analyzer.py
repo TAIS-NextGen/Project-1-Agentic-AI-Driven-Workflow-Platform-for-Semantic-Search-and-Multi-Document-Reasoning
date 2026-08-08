@@ -81,6 +81,14 @@ class SentimentAnalyzerNode(BaseNode):
             options=["basic", "detailed"],
             description="Niveau de detail : basic (tonalites secondaires limitees) ou detailed (analyse complete)",
         ),
+        ConfigField(
+            key="text",
+            label="Text",
+            type="text",
+            required=False,
+            default="",
+            description="Text to analyze. Leave empty if provided via upstream connection (OCR, LLM, etc.).",
+        ),
     ]
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
@@ -93,9 +101,9 @@ class SentimentAnalyzerNode(BaseNode):
             analysis_type = config.get("analysis_type", "both")
             detail_level = config.get("detail_level", "detailed")
 
-            text = ctx.get_input("text", "")
+            text = ctx.get_input("text", "") or str(config.get("text", ""))
             if not text or not text.strip():
-                result.fail("No text provided. Connect a node providing text upstream (OCR, LLM, etc.).")
+                result.fail("No text provided. Connect a node providing text upstream (OCR, LLM, etc.), or type text in the config field.")
                 return result
 
             service = SentimentAnalyzerService()

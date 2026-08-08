@@ -82,6 +82,14 @@ class DocumentStructureAnalyzerNode(BaseNode):
             default="auto",
             description="Unstructured partition strategy: 'auto', 'fast' (no OCR), or 'hi_res' (requires Tesseract)",
         ),
+        ConfigField(
+            key="language",
+            label="OCR Languages",
+            type="text",
+            required=False,
+            default="ara+eng+fra",
+            description="Tesseract language codes for OCR, joined by '+'. e.g. 'ara+eng+fra', 'deu', 'chi_sim+chi_tra'",
+        ),
     ]
 
     @staticmethod
@@ -97,6 +105,7 @@ class DocumentStructureAnalyzerNode(BaseNode):
             allowed_exts: list[str] = config.get("allowed_extensions", [])
             max_bytes = int(config.get("max_file_size_mb", 50)) * 1024 * 1024
             strategy = config.get("strategy", "auto")
+            language = config.get("language", "ara+eng+fra")
 
             file_data: dict[str, Any] | None = ctx.get_input("document")
 
@@ -132,7 +141,7 @@ class DocumentStructureAnalyzerNode(BaseNode):
                 return result
 
             analyzer = StructureAnalyzerService()
-            analysis = await analyzer.analyze(str(file_path), strategy=strategy)
+            analysis = await analyzer.analyze(str(file_path), strategy=strategy, languages=language)
 
             result.succeed({
                 "structure": analysis["pages"],

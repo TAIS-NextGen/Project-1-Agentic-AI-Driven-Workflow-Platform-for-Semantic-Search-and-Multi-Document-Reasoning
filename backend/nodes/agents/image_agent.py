@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -68,7 +69,15 @@ class ImageAgentNode(BaseNode):
             type="text",
             required=False,
             default="Describe this image in detail.",
-            description="Question to ask about the image",
+            description="Question or instruction for the vision model",
+        ),
+        ConfigField(
+            key="file_id",
+            label="File ID",
+            type="text",
+            required=False,
+            default="",
+            description="File ID from /api/documents/upload. Leave empty if image comes from upstream node.",
         ),
     ]
 
@@ -87,7 +96,11 @@ class ImageAgentNode(BaseNode):
 
             image_data: dict[str, Any] | None = ctx.get_input("image")
             if not image_data:
-                result.fail("No image provided. Connect a DocumentUpload node upstream.")
+                file_id = config.get("file_id", "")
+                if file_id:
+                    image_data = await self._resolve_by_file_id(file_id)
+            if not image_data:
+                result.fail("No image provided. Connect a DocumentUpload node upstream or set a File ID in config.")
                 return result
 
             path_val = image_data.get("path") or image_data.get("file_path")
@@ -115,3 +128,34 @@ class ImageAgentNode(BaseNode):
             result.fail(str(e))
 
         return result
+
+    async def _resolve_by_file_id(self, file_id: str) -> dict[str, Any] | None:
+        upload_dir = self._get_upload_dir()
+        if not upload_dir.exists():
+            return None
+        index_path = upload_dir / ".documents-index.json"
+        if index_path.exists():
+            try:
+                index = json.loads(index_path.read_text(encoding="utf-8"))
+                record = index.get(file_id) if isinstance(index, dict) else None
+                if record:
+                    file_path = Path(record.get("path", ""))
+                    if file_path.exists():
+                        return {
+                            "file_id": file_id,
+                            "filename": record.get("filename", file_path.name),
+                            "path": str(file_path),
+                            "size_bytes": record.get("size_bytes", file_path.stat().st_size),
+                            "mime_type": record.get("mime_type"),
+                        }
+            except (OSError, json.JSONDecodeError):
+                pass
+        for f in upload_dir.iterdir():
+            if f.is_file() and not f.name.startswith(".") and f.stem == file_id:
+                return {
+                    "file_id": file_id,
+                    "filename": f.name,
+                    "path": str(f),
+                    "size_bytes": f.stat().st_size,
+                }
+        return None

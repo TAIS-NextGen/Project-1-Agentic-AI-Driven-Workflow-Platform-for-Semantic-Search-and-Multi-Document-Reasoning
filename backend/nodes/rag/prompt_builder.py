@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json as json_lib
 from typing import Any
 
 from backend.sdk import (
@@ -115,6 +116,22 @@ class PromptBuilderNode(BaseNode):
             options=["fr", "en", "ar"],
             description="Template language hint",
         ),
+        ConfigField(
+            key="question",
+            label="Question",
+            type="text",
+            required=False,
+            default="",
+            description="User question or analysis instruction. Leave empty if provided via upstream connection.",
+        ),
+        ConfigField(
+            key="chunks",
+            label="Chunks (JSON)",
+            type="text",
+            required=False,
+            default="[]",
+            description="Document chunks as JSON array. Leave empty if provided via upstream VectorStore.",
+        ),
     ]
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
@@ -127,8 +144,18 @@ class PromptBuilderNode(BaseNode):
             system_prompt = config.get("system_prompt", "")
 
             chunks = ctx.get_input("chunks", [])
+            if not chunks:
+                raw_chunks = config.get("chunks", "[]")
+                if isinstance(raw_chunks, str) and raw_chunks.strip():
+                    try:
+                        chunks = json_lib.loads(raw_chunks)
+                    except (json_lib.JSONDecodeError, TypeError):
+                        chunks = []
+                elif isinstance(raw_chunks, list):
+                    chunks = raw_chunks
+
             context = ctx.get_input("context", {})
-            question = ctx.get_input("question", "")
+            question = ctx.get_input("question", "") or str(config.get("question", ""))
 
             if not question:
                 result.fail("'question' input is required")

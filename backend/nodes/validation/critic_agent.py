@@ -120,6 +120,30 @@ class CriticAgentNode(BaseNode):
             default="[]",
             description="Criteres de verification personnalises au format JSON [{key, label, description}]",
         ),
+        ConfigField(
+            key="generated_response",
+            label="Generated Response",
+            type="text",
+            required=False,
+            default="",
+            description="The AI-generated response to verify. Leave empty if provided via upstream LLM/RAG node.",
+        ),
+        ConfigField(
+            key="evidence",
+            label="Evidence (JSON)",
+            type="json",
+            required=False,
+            default="{}",
+            description="Source documents or chunks as JSON. Leave empty if provided via upstream VectorStore.",
+        ),
+        ConfigField(
+            key="question",
+            label="Question",
+            type="text",
+            required=False,
+            default="",
+            description="Original user question (optional, for context).",
+        ),
     ]
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
@@ -134,17 +158,26 @@ class CriticAgentNode(BaseNode):
             language = config.get("language", "fr")
             max_issues = int(config.get("max_issues", 5))
 
-            generated_response = ctx.get_input("generated_response", "")
+            generated_response = ctx.get_input("generated_response", "") or str(config.get("generated_response", ""))
             if not generated_response or not generated_response.strip():
-                result.fail("No generated response provided. Connect a node providing text upstream (LLM, RAG, etc.).")
+                result.fail("No generated response provided. Connect a node providing text upstream (LLM, RAG, etc.), or type text in the config field.")
                 return result
 
             evidence = ctx.get_input("evidence")
             if not evidence:
-                result.fail("No evidence provided. Connect a node providing source documents upstream (VectorStore, chunks, etc.).")
+                raw_evidence = config.get("evidence", "{}")
+                if isinstance(raw_evidence, str) and raw_evidence.strip():
+                    try:
+                        evidence = json_lib.loads(raw_evidence)
+                    except (json_lib.JSONDecodeError, TypeError):
+                        evidence = {}
+                elif isinstance(raw_evidence, (dict, list)):
+                    evidence = raw_evidence
+            if not evidence:
+                result.fail("No evidence provided. Connect a node providing source documents upstream (VectorStore, chunks, etc.), or provide JSON in the config field.")
                 return result
 
-            question = ctx.get_input("question", "")
+            question = ctx.get_input("question", "") or str(config.get("question", ""))
 
             custom_criteria_raw = config.get("verification_criteria", "[]")
             if isinstance(custom_criteria_raw, str) and custom_criteria_raw.strip() and custom_criteria_raw.strip() != "[]":

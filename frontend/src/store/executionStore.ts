@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 
-import { getNodeDefinition } from '../config/nodeDefinitions';
+import { getNodeDefinition, NODE_DEFINITIONS, type NodeDefinition } from '../config/nodeDefinitions';
 import { useFlowStore } from './flowStore';
+import { fetchBackendNodeDefinitions } from '../services/backendApi';
 
 export interface LogEntry {
   id: string;
@@ -29,6 +30,7 @@ interface ExecutionStore {
   progress: number;
   isRunning: boolean;
   executionResults: Record<string, any> | null;
+  backendNodeDefinitions: NodeDefinition[];
 
   startExecution: (workflowId: string, workflowName: string) => Promise<void>;
   cancelExecution: () => void;
@@ -68,9 +70,16 @@ function resolvePorts(
   targetType: string | undefined,
   sourcePort?: string,
   targetPort?: string,
+  backendDefinitions: NodeDefinition[] = [],
 ) {
-  const sourceDefinition = sourceType ? getNodeDefinition(sourceType) : undefined;
-  const targetDefinition = targetType ? getNodeDefinition(targetType) : undefined;
+  const mergedDefMap = new Map(
+    [...NODE_DEFINITIONS, ...backendDefinitions].map((def) => [def.type, def]),
+  );
+  const resolveDef = (type: string | undefined) =>
+    type ? (mergedDefMap.get(type) || getNodeDefinition(type)) : undefined;
+
+  const sourceDefinition = resolveDef(sourceType);
+  const targetDefinition = resolveDef(targetType);
   const sourceOutputs = sourceDefinition?.outputs || [];
   const targetInputs = targetDefinition?.inputs || [];
 
@@ -171,6 +180,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   progress: 0,
   isRunning: false,
   executionResults: null,
+  backendNodeDefinitions: [],
 
   clearLogs: () => set({ logs: [] }),
 
@@ -187,6 +197,15 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
   startExecution: async (workflowId, workflowName) => {
     get().cancelExecution();
+
+    if (!get().backendNodeDefinitions.length) {
+      try {
+        const defs = await fetchBackendNodeDefinitions();
+        set({ backendNodeDefinitions: defs });
+      } catch {
+        set({ backendNodeDefinitions: [] });
+      }
+    }
 
     const flowStore = useFlowStore.getState();
     const currentNodes = flowStore.nodes;
@@ -233,10 +252,14 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       return;
     }
 
+    const defMap = new Map(
+      [...NODE_DEFINITIONS, ...get().backendNodeDefinitions].map((def) => [def.type, def]),
+    );
+
     const backendNodes = currentNodes
       .filter((node) => node.type !== 'output')
       .map((node) => {
-        const definition = getNodeDefinition(node.type);
+        const definition = defMap.get(node.type) || getNodeDefinition(node.type);
         return {
           id: node.id,
           type: definition?.backendType || node.type,
@@ -267,7 +290,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           const ordinal = incoming.findIndex((candidate) => candidate.id === edge.id);
           targetPort = ordinal <= 0 ? 'original_document' : 'revised_document';
         }
-        const ports = resolvePorts(sourceNode?.type, targetNode?.type, edge.sourcePort, targetPort);
+        const ports = resolvePorts(sourceNode?.type, targetNode?.type, edge.sourcePort, targetPort, get().backendNodeDefinitions);
         return {
           source: edge.source,
           source_port: ports.sourcePort,

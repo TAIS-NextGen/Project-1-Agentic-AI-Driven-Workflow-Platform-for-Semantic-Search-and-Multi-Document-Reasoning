@@ -95,6 +95,30 @@ class FeedbackCollectorNode(BaseNode):
             default="data/feedback",
             description="Directory where feedback entries are stored",
         ),
+        ConfigField(
+            key="question",
+            label="Question",
+            type="text",
+            required=False,
+            default="",
+            description="User question. Leave empty if provided via upstream connection.",
+        ),
+        ConfigField(
+            key="answer",
+            label="Answer",
+            type="text",
+            required=False,
+            default="",
+            description="Generated answer to evaluate. Leave empty if provided via upstream connection.",
+        ),
+        ConfigField(
+            key="feedback",
+            label="Feedback (JSON)",
+            type="json",
+            required=False,
+            default='{"sentiment":"positive","correction":""}',
+            description='User feedback: {"sentiment":"positive"|"negative","correction":"..."}',
+        ),
     ]
 
     def _get_storage_dir(self) -> Path:
@@ -178,10 +202,20 @@ class FeedbackCollectorNode(BaseNode):
         result.start()
 
         try:
-            question = ctx.get_input("question", "")
-            answer = ctx.get_input("answer", "")
+            config = self.get_resolved_config()
+            question = ctx.get_input("question", "") or str(config.get("question", ""))
+            answer = ctx.get_input("answer", "") or str(config.get("answer", ""))
             chunks_used = ctx.get_input("chunks_used", [])
             feedback = ctx.get_input("feedback", {})
+            if not feedback:
+                raw_feedback = config.get("feedback", "{}")
+                if isinstance(raw_feedback, str) and raw_feedback.strip():
+                    try:
+                        feedback = json_lib.loads(raw_feedback)
+                    except (json_lib.JSONDecodeError, TypeError):
+                        feedback = {}
+                elif isinstance(raw_feedback, dict):
+                    feedback = raw_feedback
 
             if not question or not question.strip():
                 result.fail("The 'question' input is required")

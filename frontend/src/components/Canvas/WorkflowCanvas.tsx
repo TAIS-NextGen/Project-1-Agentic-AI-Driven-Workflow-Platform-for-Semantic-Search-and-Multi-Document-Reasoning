@@ -755,7 +755,7 @@ export function WorkflowCanvas({ onRunWorkflow, onBackToWorkflows, theme, onTogg
         </div>
       </div>
 
-      {selectedNodeId && <NodeConfigPanel />}
+      {selectedNodeId && <NodeConfigPanel backendDefinitions={backendNodes} />}
     </div>
   );
 }

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFlowStore } from '../../store/flowStore';
-import { getNodeDefinition } from '../../config/nodeDefinitions';
+import { getNodeDefinition, NODE_DEFINITIONS, type NodeDefinition } from '../../config/nodeDefinitions';
 import { executeSingleNode, listDocuments, uploadDocument, uploadDocuments, type NodeExecutionResult } from '../../services/backendApi';
 import type { DocumentRecord } from '../../types';
 import { useExecutionStore } from '../../store/executionStore';
@@ -85,7 +85,7 @@ function filenameFromOutput(value: unknown, depth = 0): string | null {
   return null;
 }
 
-export function NodeConfigPanel() {
+export function NodeConfigPanel({ backendDefinitions = [] }: { backendDefinitions?: NodeDefinition[] }) {
   const { selectedNodeId, nodes, edges, updateNodeConfig, selectNode } = useFlowStore();
   const { executionResults } = useExecutionStore();
   const [activeTab, setActiveTab] = useState<'parameters' | 'io' | 'test' | 'results'>('parameters');
@@ -97,8 +97,17 @@ export function NodeConfigPanel() {
   const [libraryDocuments, setLibraryDocuments] = useState<DocumentRecord[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
 
+  const mergedDefinitions = useMemo(
+    () => new Map(
+      [...NODE_DEFINITIONS, ...backendDefinitions].map((def) => [def.type, def]),
+    ),
+    [backendDefinitions],
+  );
+
+  const resolveDefinition = (type: string) => mergedDefinitions.get(type) || getNodeDefinition(type);
+
   const node = nodes.find((n) => n.id === selectedNodeId);
-  const definition = node ? getNodeDefinition(node.type) : null;
+  const definition = node ? resolveDefinition(node.type) : null;
   const incomingEdges = node ? edges.filter((edge) => edge.target === node.id) : [];
   const findNearestConfiguredFilename = (startNodeId: string): string | null => {
     const queue = [startNodeId];
@@ -123,11 +132,13 @@ export function NodeConfigPanel() {
     return null;
   };
 
-  const resolveInputSources = (): ResolvedInputSource[] => incomingEdges.flatMap((edge) => {
+  const resolveInputSources = (): ResolvedInputSource[] => {
+    if (!definition) return [];
+    return incomingEdges.flatMap((edge) => {
     const sourceNode = nodes.find((candidate) => candidate.id === edge.source);
     if (!sourceNode) return [];
 
-    const sourceDefinition = getNodeDefinition(sourceNode.type);
+    const sourceDefinition = resolveDefinition(sourceNode.type);
     const outputs = executionResults?.[sourceNode.id]?.outputs || {};
     const outputEntries = Object.entries(outputs);
     const explicitPort = edge.sourcePort && edge.sourcePort !== 'output' ? edge.sourcePort : undefined;
@@ -201,6 +212,7 @@ export function NodeConfigPanel() {
       fromExecution: Boolean(outputEntries.length),
     }];
   });
+  };
 
   const inputSources = resolveInputSources();
   let nodeResult: any = testResult;
@@ -1158,10 +1170,110 @@ export function NodeConfigPanel() {
         );
 
       default:
-        return (
-          <p className={styles.noParams}>No parameters required for this node category.</p>
-        );
+        return renderGenericConfigFields();
     }
+  };
+
+  const renderGenericConfigFields = () => {
+    const fields = definition.configFields || [];
+    if (!fields.length) {
+      return <p className={styles.noParams}>No parameters required for this node.</p>;
+    }
+
+    return (
+      <>
+        {fields.map((field: any) => {
+          const key = field.key;
+          const value = localConfig[key] !== undefined ? localConfig[key] : field.default;
+          const isTags = field.type === 'tags';
+          const isSelect = field.type === 'select';
+          const isNumber = field.type === 'number';
+          const isJson = field.type === 'json';
+          const isCheckbox = field.type === 'boolean' || field.type === 'checkbox';
+
+          return (
+            <div key={key} className={styles.formGroup}>
+              <label>{field.label || key}</label>
+
+              {isSelect && field.options ? (
+                <select
+                  value={value ?? ''}
+                  onChange={(e) => handleUpdateField(key, e.target.value)}
+                  className={styles.select}
+                >
+                  {field.options.map((opt: string) => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              ) : isTags && Array.isArray(field.default) ? (
+                <div className={styles.pillsRow}>
+                  {field.default.map((tag: string) => {
+                    const currentTags: string[] = Array.isArray(value) ? value : [];
+                    const active = currentTags.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          const next = active
+                            ? currentTags.filter((t: string) => t !== tag)
+                            : [...currentTags, tag];
+                          handleUpdateField(key, next);
+                        }}
+                        className={`${styles.pill} ${active ? styles.pillActive : ''}`}
+                      >
+                        {tag} {active ? '×' : '+'}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : isTags && typeof field.default === 'string' ? (
+                <input
+                  type="text"
+                  value={Array.isArray(value) ? value.join(',') : value ?? ''}
+                  onChange={(e) => handleUpdateField(key, e.target.value.split(',').map((s: string) => s.trim()).filter(Boolean))}
+                  placeholder={field.placeholder || field.default}
+                  className={styles.textInput}
+                />
+              ) : isNumber ? (
+                <input
+                  type="number"
+                  value={value ?? ''}
+                  onChange={(e) => handleUpdateField(key, e.target.value === '' ? '' : parseFloat(e.target.value))}
+                  className={styles.textInput}
+                  step="0.01"
+                />
+              ) : isJson ? (
+                <textarea
+                  value={typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
+                  onChange={(e) => handleUpdateField(key, e.target.value)}
+                  rows={4}
+                  className={styles.textarea}
+                  placeholder={field.placeholder || '{"key": "value"}'}
+                />
+              ) : isCheckbox ? (
+                <input
+                  type="checkbox"
+                  checked={Boolean(value)}
+                  onChange={(e) => handleUpdateField(key, e.target.checked)}
+                />
+              ) : (
+                <input
+                  type="text"
+                  value={value ?? ''}
+                  onChange={(e) => handleUpdateField(key, e.target.value)}
+                  placeholder={field.placeholder || field.description || ''}
+                  className={styles.textInput}
+                />
+              )}
+
+              {field.description && (
+                <span className={styles.helpText}>{field.description}</span>
+              )}
+            </div>
+          );
+        })}
+      </>
+    );
   };
 
   const testRequiresWorkflow = incomingEdges.length > 0 || ['date-normalizer', 'document-parser', 'masker', 'comparison-agent'].includes(node.type);
