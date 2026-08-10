@@ -150,7 +150,7 @@ function resolvePorts(
 
   if (!sourceOutputs.length) {
     if (sourceType === 'document-upload' || sourceType === 'document-input') resolvedSourcePort = 'document';
-    else if (['denoising', 'image-denoise', 'contrast-enhancer'].includes(sourceType || '')) resolvedSourcePort = 'image';
+    else if (['denoising', 'image-denoise', 'contrast-enhancer', 'orientation-detector'].includes(sourceType || '')) resolvedSourcePort = 'image';
     else if (sourceType === 'document-parser') resolvedSourcePort = 'text';
     else if (sourceType === 'date-normalizer') resolvedSourcePort = 'normalized_text';
     else if (sourceType === 'masker') resolvedSourcePort = 'document';
@@ -160,7 +160,7 @@ function resolvePorts(
   }
 
   if (!targetInputs.length) {
-    if (['denoising', 'image-denoise', 'contrast-enhancer'].includes(targetType || '')) resolvedTargetPort = 'image';
+    if (['denoising', 'image-denoise', 'contrast-enhancer', 'orientation-detector'].includes(targetType || '')) resolvedTargetPort = 'image';
     else if (targetType === 'document-parser') resolvedTargetPort = 'document';
     else if (targetType === 'masker') resolvedTargetPort = 'document';
     else if (targetType === 'topic-clustering') resolvedTargetPort = 'corpus';

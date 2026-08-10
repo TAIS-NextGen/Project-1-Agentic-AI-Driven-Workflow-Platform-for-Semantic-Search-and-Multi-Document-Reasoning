@@ -245,6 +245,38 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
   {
+    type: 'orientation-detector',
+    name: 'Orientation detector',
+    category: 'Preprocessing',
+    icon: '🔄',
+    color: CATEGORY_COLORS.Preprocessing,
+    description: 'Detect and correct page orientation',
+    defaultConfig: {},
+    backendType: 'orientation-detector',
+    inputs: [
+      {
+        name: 'image',
+        type: 'image',
+        label: 'Image/page',
+        description: 'Image or page whose orientation needs to be corrected',
+      },
+    ],
+    outputs: [
+      {
+        name: 'image',
+        type: 'image',
+        label: 'Reoriented page',
+        description: 'Image/page with corrected orientation',
+      },
+      {
+        name: 'metadata',
+        type: 'json',
+        label: 'Metadata',
+        description: 'Information on detected orientation and applied correction',
+      },
+    ],
+  },
+  {
     type: 'text-splitter',
     name: 'Text Splitter',
     category: 'Preprocessing',
@@ -306,6 +338,38 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     color: CATEGORY_COLORS.Extraction,
     description: 'Classify document content',
     defaultConfig: { labels: [] },
+  },
+  {
+    type: 'language-detector',
+    name: 'Language Detector',
+    category: 'Extraction',
+    icon: '🌐',
+    color: CATEGORY_COLORS.Extraction,
+    description: 'Detect the language(s) of a given text. Supports multi-language documents.',
+    defaultConfig: { detection_mode: 'document', min_probability: 0.1, max_languages: 5 },
+    backendType: 'language-detector',
+    inputs: [
+      {
+        name: 'text',
+        type: 'text',
+        label: 'Text',
+        description: 'Raw text to detect language from',
+      },
+    ],
+    outputs: [
+      {
+        name: 'languages',
+        type: 'json',
+        label: 'Detected Languages',
+        description: 'List of detected languages with confidence scores',
+      },
+      {
+        name: 'languages_str',
+        type: 'text',
+        label: 'Detected Language(s)',
+        description: 'Comma-separated list of detected languages',
+      },
+    ],
   },
   {
     type: 'output',

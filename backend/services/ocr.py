@@ -54,7 +54,50 @@ class OCRService:
         return [[["Mock", "Table", "Data"]]]
 
     async def detect_orientation(self, image_path: str | Path) -> dict[str, Any]:
-        return {"angle": 0, "confidence": 1.0}
+        try:
+            import os
+            import pytesseract
+            from PIL import Image
+            from backend.settings import settings
+
+            # Resolve Tesseract path: prioritize settings first, then fallback to Windows defaults
+            tesseract_path = settings.ocr_tesseract_path.strip()
+            if tesseract_path:
+                pytesseract.pytesseract.tesseract_cmd = tesseract_path
+            elif os.name == "nt" and not getattr(pytesseract.pytesseract, "tesseract_cmd", None):
+                default_path = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+                if os.path.exists(default_path):
+                    pytesseract.pytesseract.tesseract_cmd = default_path
+                else:
+                    # Let's also check default local appdata path if installed user-only
+                    local_appdata_path = os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe")
+                    if os.path.exists(local_appdata_path):
+                        pytesseract.pytesseract.tesseract_cmd = local_appdata_path
+
+            with Image.open(image_path) as img:
+                osd = pytesseract.image_to_osd(img)
+                angle = 0
+                confidence = 1.0
+                for line in osd.split("\n"):
+                    if "Rotate:" in line:
+                        try:
+                            angle = int(line.split(":")[1].strip())
+                        except ValueError:
+                            pass
+                    elif "Orientation confidence:" in line:
+                        try:
+                            confidence = float(line.split(":")[1].strip())
+                        except ValueError:
+                            pass
+                return {"angle": angle, "confidence": confidence}
+        except Exception as e:
+            logger.warning(
+                f"Orientation detection failed (pytesseract OSD failed or not installed): {e}. "
+                "Returning default (0 degrees)."
+            )
+            return {"angle": 0, "confidence": 1.0}
+
+
 class TesseractOCRService:
     """Printed-text OCR using Tesseract — fast, no GPU, good first-pass
     baseline for typed/scanned documents (as opposed to handwriting)."""
