@@ -398,6 +398,44 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
   {
+    type: 'barcode-reader',
+    name: 'Barcode & QR Reader',
+    category: 'Extraction',
+    icon: '🔳',
+    color: CATEGORY_COLORS.Extraction,
+    description: 'Detect and decode barcodes and QR codes from images',
+    defaultConfig: { draw_boxes: true },
+    backendType: 'barcode-reader',
+    inputs: [
+      {
+        name: 'image',
+        type: 'image',
+        label: 'Image',
+        description: 'The image containing the barcodes or QR codes',
+      },
+    ],
+    outputs: [
+      {
+        name: 'barcodes_data',
+        type: 'json',
+        label: 'Barcodes Data',
+        description: 'Structured JSON data containing the types, decoded text, and coordinates',
+      },
+      {
+        name: 'annotated_image',
+        type: 'image',
+        label: 'Annotated Image',
+        description: 'The original image with bounding boxes drawn',
+      },
+      {
+        name: 'text',
+        type: 'text',
+        label: 'Extracted Text',
+        description: 'The combined decoded text from all detected codes',
+      },
+    ],
+  },
+  {
     type: 'output',
     name: 'Output',
     category: 'Export/Output',
