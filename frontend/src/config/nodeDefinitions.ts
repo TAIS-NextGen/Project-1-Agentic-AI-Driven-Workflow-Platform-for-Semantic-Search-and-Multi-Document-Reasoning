@@ -372,6 +372,32 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     ],
   },
   {
+    type: 'summarizer',
+    name: 'Summarizer Agent',
+    category: 'Extraction',
+    icon: '📝',
+    color: CATEGORY_COLORS.Extraction,
+    description: 'Generate a summary of the provided text in various styles',
+    defaultConfig: { style: 'short', model: '' },
+    backendType: 'summarizer',
+    inputs: [
+      {
+        name: 'text',
+        type: 'text',
+        label: 'Text',
+        description: 'Document text or chunks to summarize',
+      },
+    ],
+    outputs: [
+      {
+        name: 'summary',
+        type: 'text',
+        label: 'Summary',
+        description: 'The generated summary',
+      },
+    ],
+  },
+  {
     type: 'output',
     name: 'Output',
     category: 'Export/Output',
