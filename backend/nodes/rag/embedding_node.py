@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json as json_lib
 from typing import Any
 
 from backend.sdk import (
@@ -56,6 +57,14 @@ class EmbeddingNode(BaseNode):
             default="BAAI/bge-small-en-v1.5",
             description="Sentence-transformers model name (bge or e5 family recommended)",
         ),
+        ConfigField(
+            key="chunks",
+            label="Chunks (JSON)",
+            type="json",
+            required=False,
+            default='["Sample chunk 1", "Sample chunk 2"]',
+            description="JSON array of text chunks. Leave empty if provided via upstream connection.",
+        ),
     ]
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
@@ -67,6 +76,15 @@ class EmbeddingNode(BaseNode):
             model_name = config.get("model_name", "BAAI/bge-small-en-v1.5")
 
             chunks: list[str] | None = ctx.get_input("chunks")
+            if not chunks:
+                raw = config.get("chunks", "[]")
+                if isinstance(raw, str) and raw.strip():
+                    try:
+                        chunks = json_lib.loads(raw)
+                    except (json_lib.JSONDecodeError, TypeError):
+                        chunks = []
+                elif isinstance(raw, list):
+                    chunks = raw
             if not chunks or not isinstance(chunks, list):
                 result.fail("No chunks provided via input port")
                 return result

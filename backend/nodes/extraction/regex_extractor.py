@@ -88,6 +88,14 @@ class RegexExtractorNode(BaseNode):
             default="[]",
             description="Custom JSON array of pattern definitions (used if template='custom')",
         ),
+        ConfigField(
+            key="text",
+            label="Text",
+            type="text",
+            required=False,
+            default="",
+            description="Text to extract patterns from. Leave empty if provided via upstream connection.",
+        ),
     ]
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
@@ -99,7 +107,7 @@ class RegexExtractorNode(BaseNode):
             template = config.get("template", "generic")
             language = config.get("language", "fr")
 
-            text = ctx.get_input("text", "")
+            text = ctx.get_input("text", "") or str(config.get("text", ""))
             if not isinstance(text, str) or not text.strip():
                 file_id = config.get("file_id", "")
                 if not file_id:

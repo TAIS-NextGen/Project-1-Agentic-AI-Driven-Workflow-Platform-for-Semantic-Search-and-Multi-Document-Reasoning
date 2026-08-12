@@ -63,7 +63,7 @@ class DocumentStructureAnalyzerNode(BaseNode):
             label="Allowed Extensions",
             type="tags",
             required=False,
-            default=[".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".bmp"],
+            default=[".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".docx"],
             description="Accepted document file extensions",
         ),
         ConfigField(
