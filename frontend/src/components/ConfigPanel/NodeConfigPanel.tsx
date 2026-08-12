@@ -589,6 +589,50 @@ export function NodeConfigPanel({ backendDefinitions = [] }: { backendDefinition
         );
 
       case 'document-input':
+      case 'language-detector':
+        return (
+          <>
+            <div className={styles.formGroup}>
+              <label>Detection Mode</label>
+              <select
+                value={localConfig.detection_mode || 'document'}
+                onChange={(e) => handleUpdateField('detection_mode', e.target.value)}
+                className={styles.select}
+              >
+                <option value="document">Entire Document</option>
+                <option value="paragraph">Paragraph by Paragraph</option>
+                <option value="sentence">Sentence by Sentence</option>
+              </select>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Min Probability: {localConfig.min_probability ?? 0.1}</label>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={localConfig.min_probability ?? 0.1}
+                onChange={(e) => handleUpdateField('min_probability', parseFloat(e.target.value))}
+                className={styles.range}
+              />
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Max Languages: {localConfig.max_languages ?? 5}</label>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                step="1"
+                value={localConfig.max_languages ?? 5}
+                onChange={(e) => handleUpdateField('max_languages', parseInt(e.target.value))}
+                className={styles.range}
+              />
+            </div>
+          </>
+        );
+
       case 'document-upload':
         return (
           <>
