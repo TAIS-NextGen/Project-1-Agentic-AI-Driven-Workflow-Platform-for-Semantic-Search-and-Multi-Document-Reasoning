@@ -45,6 +45,12 @@ class NodeResult:
         self.error = error
         self.completed_at = datetime.utcnow()
 
+    def skip(self, reason: str = "") -> None:
+        self.status = NodeStatus.SKIPPED
+        if reason:
+            self.error = reason
+        self.completed_at = datetime.utcnow()
+
     def get_output(self, name: str, default: Any = None) -> Any:
         return self.outputs.get(name, default)
 

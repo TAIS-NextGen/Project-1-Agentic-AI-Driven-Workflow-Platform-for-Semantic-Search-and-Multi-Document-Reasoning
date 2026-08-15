@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+
+import { getNodeDefinition, NODE_DEFINITIONS, type NodeDefinition } from '../config/nodeDefinitions';
 import { useFlowStore } from './flowStore';
-import { getNodeDefinition } from '../config/nodeDefinitions';
+import { fetchBackendNodeDefinitions } from '../services/backendApi';
 
 export interface LogEntry {
   id: string;
@@ -28,114 +30,163 @@ interface ExecutionStore {
   progress: number;
   isRunning: boolean;
   executionResults: Record<string, any> | null;
+  backendNodeDefinitions: NodeDefinition[];
 
-  // Actions
   startExecution: (workflowId: string, workflowName: string) => Promise<void>;
   cancelExecution: () => void;
   clearLogs: () => void;
   addLog: (level: 'info' | 'warn' | 'error', nodeName: string, message: string) => void;
 }
 
-const mockRuns: ExecutionRun[] = [
-  {
-    id: 'run-141',
-    workflowId: 'wf-1',
-    workflowName: 'Invoice Processing Pipeline',
-    status: 'success',
-    startedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-    durationMs: 4200,
-    nodeCount: 4,
-  },
-  {
-    id: 'run-140',
-    workflowId: 'wf-2',
-    workflowName: 'Contract Classifier',
-    status: 'running',
-    startedAt: new Date(Date.now() - 60000).toISOString(),
-    durationMs: 0,
-    nodeCount: 6,
-  },
-  {
-    id: 'run-139',
-    workflowId: 'wf-3',
-    workflowName: 'Medical Records OCR',
-    status: 'failed',
-    startedAt: new Date(Date.now() - 86400000).toISOString(),
-    durationMs: 1800,
-    nodeCount: 5,
-  },
-];
-
-const MOCK_SVG = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMWUyOTNiIi8+PHRleHQgeD0iNTAlIiB5PSI0NSUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmb250LXNpemU9IjE2IiBmaWxsPSIjMTBiOTgxIiBmb250LXdlaWdodD0iYm9sZCI+RGVub2lzZWQgRG9jdW1lbnQgUHJldmlldzwvdGV4dD48dGV4dCB4PSI1MCUiIHk9IjYwJSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTEiIGZpbGw9IiM5NGEzYjgiPkNsZWFuZWQgaW1hZ2UgZ2VuZXJhdGVkIHN1Y2Nlc3NmdWxseS48L3RleHQ+PC9zdmc+';
-
-const mockExecutionResults = (nodes: any[]) => {
-  const results: Record<string, any> = {};
-  nodes.forEach(node => {
-    if (node.type === 'denoising' || node.type === 'image-denoise') {
-      results[node.id] = {
-        status: 'success',
-        outputs: {
-          image: {
-            filename: 'denoised_document.png',
-            path: MOCK_SVG,
-            size_bytes: 45201,
-            mime_type: 'image/png'
-          },
-          metadata: {
-            denoise_method: node.config.method || 'pil-median',
-            input_format: '.png'
-          }
-        }
-      };
-    } else if (node.type === 'document-upload' || node.type === 'document-input') {
-      results[node.id] = {
-        status: 'success',
-        outputs: {
-          document: {
-            filename: node.config.filename || 'uploaded_document.png',
-            path: MOCK_SVG,
-            size_bytes: 52104,
-            mime_type: 'image/png'
-          }
-        }
-      };
-    } else if (node.type === 'ocr') {
-      results[node.id] = {
-        status: 'success',
-        outputs: {
-          text: "INVOICE #INV-2026-001\nDate: 2026-07-15\nAmount Due: $1,250.00\nVAT: $250.00",
-          confidence: 0.94
-        }
-      };
-    } else {
-      results[node.id] = {
-        status: 'success',
-        outputs: {
-          output: "Mock output for node " + node.id
-        }
-      };
-    }
-  });
-  return results;
-};
-
 let timerInterval: number | null = null;
-let simulationTimeout: number | null = null;
+let activeAbortController: AbortController | null = null;
+
+function clearExecutionResources() {
+  if (timerInterval !== null) {
+    window.clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  activeAbortController = null;
+}
+
+function portsAreCompatible(sourceType?: string, targetType?: string) {
+  if (!sourceType || !targetType || sourceType === 'any' || targetType === 'any') return true;
+  const compatibility: Record<string, string[]> = {
+    document: ['document', 'document[]', 'image', 'any'],
+    'document[]': ['document[]', 'any'],
+    image: ['image', 'document', 'any'],
+    text: ['text', 'chunks', 'any'],
+    chunks: ['chunks', 'text', 'any'],
+    json: ['json', 'any'],
+    embedding: ['embedding', 'any'],
+    table: ['table', 'any'],
+    corpus: ['corpus', 'any'],
+  };
+  return (compatibility[sourceType] || [sourceType, 'any']).includes(targetType);
+}
+
+function resolvePorts(
+  sourceType: string | undefined,
+  targetType: string | undefined,
+  sourcePort?: string,
+  targetPort?: string,
+  backendDefinitions: NodeDefinition[] = [],
+) {
+  const mergedDefMap = new Map(
+    [...NODE_DEFINITIONS, ...backendDefinitions].map((def) => [def.type, def]),
+  );
+  const resolveDef = (type: string | undefined) =>
+    type ? (mergedDefMap.get(type) || getNodeDefinition(type)) : undefined;
+
+  const sourceDefinition = resolveDef(sourceType);
+  const targetDefinition = resolveDef(targetType);
+  const sourceOutputs = sourceDefinition?.outputs || [];
+  const targetInputs = targetDefinition?.inputs || [];
+
+  const explicitSource = sourcePort && sourcePort !== 'output' ? sourcePort : undefined;
+  const explicitTarget = targetPort && targetPort !== 'input' ? targetPort : undefined;
+
+  const outputPriority = [
+    'corpus',
+    'documents',
+    'document',
+    'cleaned_document',
+    'converted_path',
+    'converted_file',
+    'image',
+    'text',
+    'normalized_text',
+    'chunks',
+    'data',
+    'output',
+  ];
+  const inputPriority = targetType === 'topic-clustering'
+    ? ['corpus']
+    : targetType === 'comparison-agent'
+      ? ['original_document', 'revised_document']
+      : targetType === 'document-parser'
+      ? ['document']
+      : targetType === 'masker'
+        ? ['document', 'text']
+        : ['text', 'document', 'image', 'chunks', 'data', 'input'];
+
+  const orderedOutputs = [
+    ...outputPriority.flatMap((name) => sourceOutputs.filter((port) => port.name === name)),
+    ...sourceOutputs.filter((port) => !outputPriority.includes(port.name || '')),
+  ];
+  const orderedInputs = [
+    ...inputPriority.flatMap((name) => targetInputs.filter((port) => port.name === name)),
+    ...targetInputs.filter((port) => !inputPriority.includes(port.name || '')),
+  ];
+
+  let source = explicitSource
+    ? sourceOutputs.find((port) => port.name === explicitSource)
+    : undefined;
+  let target = explicitTarget
+    ? targetInputs.find((port) => port.name === explicitTarget)
+    : undefined;
+
+  if (source && !target) {
+    target = orderedInputs.find((port) => portsAreCompatible(source?.type, port.type));
+  } else if (target && !source) {
+    source = orderedOutputs.find((port) => portsAreCompatible(port.type, target?.type));
+  } else if (!source && !target) {
+    for (const candidateSource of orderedOutputs) {
+      const candidateTarget = orderedInputs.find((port) => portsAreCompatible(candidateSource.type, port.type));
+      if (candidateTarget) {
+        source = candidateSource;
+        target = candidateTarget;
+        break;
+      }
+    }
+  }
+
+  source ||= orderedOutputs[0];
+  target ||= orderedInputs[0];
+
+  // Backward-compatible fallbacks for static nodes that do not yet expose ports.
+  let resolvedSourcePort = source?.name || explicitSource || sourcePort || 'output';
+  let resolvedTargetPort = target?.name || explicitTarget || targetPort || 'input';
+
+  if (!sourceOutputs.length) {
+    if (sourceType === 'document-upload' || sourceType === 'document-input') resolvedSourcePort = 'document';
+    else if (['denoising', 'image-denoise', 'contrast-enhancer', 'orientation-detector'].includes(sourceType || '')) resolvedSourcePort = 'image';
+    else if (sourceType === 'document-parser') resolvedSourcePort = 'text';
+    else if (sourceType === 'date-normalizer') resolvedSourcePort = 'normalized_text';
+    else if (sourceType === 'masker') resolvedSourcePort = 'document';
+    else if (sourceType === 'corpus-input') resolvedSourcePort = 'corpus';
+    else if (sourceType === 'topic-clustering') resolvedSourcePort = 'clusters';
+    else if (sourceType === 'comparison-agent') resolvedSourcePort = 'comparison';
+  }
+
+  if (!targetInputs.length) {
+    if (['denoising', 'image-denoise', 'contrast-enhancer', 'orientation-detector'].includes(targetType || '')) resolvedTargetPort = 'image';
+    else if (targetType === 'document-parser') resolvedTargetPort = 'document';
+    else if (targetType === 'masker') resolvedTargetPort = 'document';
+    else if (targetType === 'topic-clustering') resolvedTargetPort = 'corpus';
+    else if (targetType === 'comparison-agent') resolvedTargetPort = explicitTarget || 'original_document';
+    else if (['text-splitter', 'llm', 'classifier', 'date-normalizer'].includes(targetType || '')) resolvedTargetPort = 'text';
+  }
+
+  return { sourcePort: resolvedSourcePort, targetPort: resolvedTargetPort };
+}
 
 export const useExecutionStore = create<ExecutionStore>((set, get) => ({
-  runs: mockRuns,
+  // No fake execution history: every row shown here comes from a real run in this session.
+  runs: [],
   activeRun: null,
   logs: [],
   elapsedSeconds: 0,
   progress: 0,
   isRunning: false,
   executionResults: null,
+  backendNodeDefinitions: [],
 
   clearLogs: () => set({ logs: [] }),
 
   addLog: (level, nodeName, message) => {
     const newLog: LogEntry = {
-      id: Math.random().toString(36).substring(7),
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       timestamp: new Date().toLocaleTimeString(),
       level,
       nodeName,
@@ -146,269 +197,242 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
 
   startExecution: async (workflowId, workflowName) => {
     get().cancelExecution();
+
+    if (!get().backendNodeDefinitions.length) {
+      try {
+        const defs = await fetchBackendNodeDefinitions();
+        set({ backendNodeDefinitions: defs });
+      } catch {
+        set({ backendNodeDefinitions: [] });
+      }
+    }
+
     const flowStore = useFlowStore.getState();
     const currentNodes = flowStore.nodes;
     const currentEdges = flowStore.edges;
+    const startedAtMs = Date.now();
+    const run: ExecutionRun = {
+      id: `run-${startedAtMs}`,
+      workflowId,
+      workflowName,
+      status: 'running',
+      startedAt: new Date(startedAtMs).toISOString(),
+      durationMs: 0,
+      nodeCount: currentNodes.length,
+    };
 
     set({
       isRunning: true,
       elapsedSeconds: 0,
-      progress: 0,
+      progress: 5,
       logs: [],
       executionResults: null,
-      activeRun: {
-        id: `run-${Math.floor(Math.random() * 500) + 150}`,
-        workflowId,
-        workflowName,
-        status: 'running',
-        startedAt: new Date().toISOString(),
-        durationMs: 0,
-        nodeCount: currentNodes.length,
-      },
+      activeRun: run,
     });
 
     timerInterval = window.setInterval(() => {
       set((state) => ({ elapsedSeconds: state.elapsedSeconds + 1 }));
     }, 1000);
 
-    if (currentNodes.length === 0) {
-      get().addLog('error', 'System', 'No nodes in the canvas to execute.');
-      set({ isRunning: false });
-      if (timerInterval) clearInterval(timerInterval);
+    const failRun = (message: string) => {
+      const durationMs = Date.now() - startedAtMs;
+      get().addLog('error', 'System', message);
+      const failedRun: ExecutionRun = { ...run, status: 'failed', durationMs };
+      set((state) => ({
+        isRunning: false,
+        progress: 100,
+        activeRun: failedRun,
+        runs: [failedRun, ...state.runs],
+      }));
+      clearExecutionResources();
+    };
+
+    if (!currentNodes.length) {
+      failRun('The workflow is empty. Add and configure at least one node before running it.');
       return;
     }
 
-    flowStore.setNodes(currentNodes.map(n => ({ ...n, status: 'idle' })));
-    get().addLog('info', 'System', `Starting execution for workflow: ${workflowName}`);
+    const defMap = new Map(
+      [...NODE_DEFINITIONS, ...get().backendNodeDefinitions].map((def) => [def.type, def]),
+    );
 
     const backendNodes = currentNodes
-      .filter(n => n.type !== 'output')
-      .map(n => {
-        const definition = getNodeDefinition(n.type);
-        const backendType = definition?.backendType || n.type;
+      .filter((node) => node.type !== 'output')
+      .map((node) => {
+        const definition = defMap.get(node.type) || getNodeDefinition(node.type);
         return {
-          id: n.id,
-          type: backendType,
-          config: n.config,
+          id: node.id,
+          type: definition?.backendType || node.type,
+          config: node.config,
         };
       });
+
+    if (!backendNodes.length) {
+      failRun('The workflow contains no executable backend node.');
+      return;
+    }
+
+    flowStore.setNodes(currentNodes.map((node) => ({ ...node, status: 'idle' })));
+    get().addLog('info', 'System', `Starting real backend execution for “${workflowName}”.`);
 
     const backendEdges = currentEdges
-      .filter(e => {
-        const sourceNode = currentNodes.find(n => n.id === e.source);
-        const targetNode = currentNodes.find(n => n.id === e.target);
+      .filter((edge) => {
+        const sourceNode = currentNodes.find((node) => node.id === edge.source);
+        const targetNode = currentNodes.find((node) => node.id === edge.target);
         return sourceNode && targetNode && sourceNode.type !== 'output' && targetNode.type !== 'output';
       })
-      .map(e => {
-        const sourceNode = currentNodes.find(n => n.id === e.source);
-        const targetNode = currentNodes.find(n => n.id === e.target);
-        let sourcePort = e.sourcePort || 'output';
-        let targetPort = e.targetPort || 'input';
-
-        if (sourceNode?.type === 'document-upload' || sourceNode?.type === 'document-input') {
-          sourcePort = 'document';
-        } else if (sourceNode?.type === 'denoising' || sourceNode?.type === 'image-denoise') {
-          sourcePort = 'image';
+      .map((edge) => {
+        const sourceNode = currentNodes.find((node) => node.id === edge.source);
+        const targetNode = currentNodes.find((node) => node.id === edge.target);
+        if (edge.kind === 'control') {
+          return {
+            source: edge.source,
+            source_port: '',
+            target: edge.target,
+            target_port: '',
+            condition: edge.condition,
+            kind: 'control',
+          };
         }
-
-        if (targetNode?.type === 'denoising' || targetNode?.type === 'image-denoise') {
-          targetPort = 'image';
+        let targetPort = edge.targetPort;
+        if (targetNode?.type === 'comparison-agent' && (!targetPort || targetPort === 'input')) {
+          const incoming = currentEdges.filter((candidate) => candidate.target === edge.target);
+          const ordinal = incoming.findIndex((candidate) => candidate.id === edge.id);
+          targetPort = ordinal <= 0 ? 'original_document' : 'revised_document';
         }
-
+        const ports = resolvePorts(sourceNode?.type, targetNode?.type, edge.sourcePort, targetPort, get().backendNodeDefinitions);
         return {
-          source: e.source,
-          source_port: sourcePort,
-          target: e.target,
-          target_port: targetPort,
+          source: edge.source,
+          source_port: ports.sourcePort,
+          target: edge.target,
+          target_port: ports.targetPort,
+          condition: edge.condition,
+          kind: edge.kind || 'data',
         };
       });
 
+    activeAbortController = new AbortController();
+
     try {
-      get().addLog('info', 'System', 'Connecting to backend service...');
-      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
-      const payload = {
-        id: workflowId,
-        nodes: backendNodes,
-        edges: backendEdges,
-      };
-
-      const response = await fetch(`${API_BASE_URL}/api/workflows/execute`, {
+      set({ progress: 20 });
+      get().addLog('info', 'System', 'Sending the workflow to the backend on port 8000…');
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiBaseUrl}/api/workflows/execute`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: workflowId,
+          nodes: backendNodes,
+          edges: backendEdges,
+          validate_mode: 'relaxed',
+        }),
+        signal: activeAbortController.signal,
       });
 
       if (!response.ok) {
-        const errPayload = await response.json().catch(() => ({}));
-        throw new Error(errPayload.detail || `Server returned ${response.status}`);
+        const payload = await response.json().catch(() => ({}));
+        const detail = typeof payload?.detail === 'string'
+          ? payload.detail
+          : `Backend returned HTTP ${response.status}.`;
+        throw new Error(detail);
       }
 
       const runResult = await response.json();
-      const isSuccess = runResult.status === 'completed';
+      const results = (runResult.results || {}) as Record<string, any>;
+      const succeeded = runResult.status === 'completed';
 
-      Object.entries(runResult.results).forEach(([nodeId, res]: [string, any]) => {
-        const node = currentNodes.find(n => n.id === nodeId);
-        const nodeName = node ? node.type.toUpperCase() : 'NODE';
-        if (res.status === 'success') {
-          get().addLog('info', nodeName, `Successfully executed in ${res.duration_ms?.toFixed(1) || 0}ms.`);
+      Object.entries(results).forEach(([nodeId, result]) => {
+        const sourceNode = currentNodes.find((node) => node.id === nodeId);
+        const label = sourceNode ? sourceNode.type.toUpperCase() : 'NODE';
+        if (result.status === 'success') {
+          get().addLog('info', label, `Completed in ${Number(result.duration_ms || 0).toFixed(1)} ms.`);
         } else {
-          get().addLog('error', nodeName, `Failed: ${res.error}`);
+          get().addLog('error', label, result.error || 'Node execution failed.');
         }
       });
 
-      flowStore.setNodes(
-        currentNodes.map(n => {
-          if (n.type === 'output') {
-            const incomingEdge = currentEdges.find(e => e.target === n.id);
-            const sourceResult = incomingEdge ? runResult.results[incomingEdge.source] : null;
-            return {
-              ...n,
-              status: sourceResult ? (sourceResult.status === 'success' ? 'success' : 'error') : 'success',
-            };
-          }
-          const res = runResult.results[n.id];
+      flowStore.setNodes(currentNodes.map((node) => {
+        if (node.type === 'output') {
+          const incomingEdge = currentEdges.find((edge) => edge.target === node.id);
+          const sourceResult = incomingEdge ? results[incomingEdge.source] : null;
           return {
-            ...n,
-            status: res ? (res.status === 'success' ? 'success' : 'error') : 'idle',
+            ...node,
+            status: sourceResult?.status === 'success' ? 'success' : 'error',
           };
-        })
-      );
+        }
+        const result = results[node.id];
+        return {
+          ...node,
+          status: result?.status === 'success' ? 'success' : 'error',
+        };
+      }));
 
-      if (isSuccess) {
-        get().addLog('info', 'System', 'Execution completed successfully.');
-      } else {
-        get().addLog('error', 'System', 'Execution failed at one or more nodes.');
+      const completedRun: ExecutionRun = {
+        ...run,
+        status: succeeded ? 'success' : 'failed',
+        durationMs: Date.now() - startedAtMs,
+      };
+      get().addLog(
+        succeeded ? 'info' : 'error',
+        'System',
+        succeeded ? 'Workflow completed successfully.' : 'The backend reported one or more failed nodes.',
+      );
+      set((state) => ({
+        isRunning: false,
+        progress: 100,
+        activeRun: completedRun,
+        runs: [completedRun, ...state.runs],
+        executionResults: results,
+      }));
+      clearExecutionResources();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        clearExecutionResources();
+        return;
       }
 
-      set((state) => {
-        const completedRun: ExecutionRun = {
-          ...state.activeRun!,
-          status: isSuccess ? 'success' : 'failed',
-          durationMs: state.elapsedSeconds * 1000,
-        };
-        return {
-          isRunning: false,
-          progress: 100,
-          activeRun: completedRun,
-          runs: [completedRun, ...state.runs],
-          executionResults: runResult.results,
-        };
-      });
-
-      if (timerInterval) clearInterval(timerInterval);
-
-    } catch (error) {
-      get().addLog('warn', 'System', `Backend connection failed: ${error instanceof Error ? error.message : String(error)}`);
-      get().addLog('info', 'System', 'Running workflow in offline simulated mode...');
-
-      let nodeIndex = 0;
-      const executeNextNode = () => {
-        const flowNodes = useFlowStore.getState().nodes;
-        if (nodeIndex >= flowNodes.length) {
-          get().addLog('info', 'System', 'Simulated execution completed successfully.');
-          set((state) => {
-            if (state.activeRun) {
-              const completedRun: ExecutionRun = {
-                ...state.activeRun,
-                status: 'success',
-                durationMs: state.elapsedSeconds * 1000,
-              };
-              return {
-                isRunning: false,
-                progress: 100,
-                activeRun: completedRun,
-                runs: [completedRun, ...state.runs],
-                executionResults: mockExecutionResults(flowNodes),
-              };
-            }
-            return { isRunning: false, progress: 100 };
-          });
-          if (timerInterval) clearInterval(timerInterval);
-          return;
-        }
-
-        const node = flowNodes[nodeIndex];
-        flowStore.setNodes(
-          flowNodes.map(n => n.id === node.id ? { ...n, status: 'running' } : n)
-        );
-
-        get().addLog('info', node.type.toUpperCase(), `Executing node: ${node.id} (${node.type})...`);
-        set({ progress: Math.floor((nodeIndex / flowNodes.length) * 100) });
-
-        simulationTimeout = window.setTimeout(() => {
-          const updateNodes = useFlowStore.getState().nodes;
-          let status: 'success' | 'error' = 'success';
-
-          if (node.type === 'ocr' && Math.random() > 0.8) {
-            get().addLog('warn', 'OCR', 'Low resolution image detected, fallback activated.');
-          } else if (node.type === 'conditional' && node.config.expression === '') {
-            get().addLog('error', 'CONDITIONAL', 'Expression is missing in conditional node!');
-            status = 'error';
-          }
-
-          flowStore.setNodes(
-            updateNodes.map(n => n.id === node.id ? { ...n, status } : n)
-          );
-
-          if (status === 'error') {
-            get().addLog('error', 'System', 'Execution failed at node: ' + node.id);
-            set((state) => {
-              if (state.activeRun) {
-                const failedRun: ExecutionRun = {
-                  ...state.activeRun,
-                  status: 'failed',
-                  durationMs: state.elapsedSeconds * 1000,
-                };
-                return {
-                  isRunning: false,
-                  activeRun: failedRun,
-                  runs: [failedRun, ...state.runs],
-                };
-              }
-              return { isRunning: false };
-            });
-            if (timerInterval) clearInterval(timerInterval);
-            return;
-          }
-
-          get().addLog('info', node.type.toUpperCase(), `Completed execution for node: ${node.id}`);
-          nodeIndex++;
-          executeNextNode();
-        }, 1500);
-      };
-
-      executeNextNode();
+      flowStore.setNodes(currentNodes.map((node) => (
+        node.type === 'output' ? { ...node, status: 'idle' } : { ...node, status: 'error' }
+      )));
+      failRun(
+        `Real execution failed: ${error instanceof Error ? error.message : String(error)}. `
+        + 'No simulated result was generated. Verify that run.bat started the backend.',
+      );
     }
   },
 
   cancelExecution: () => {
-    if (timerInterval) {
-      clearInterval(timerInterval);
+    if (activeAbortController) {
+      activeAbortController.abort();
+    }
+    if (timerInterval !== null) {
+      window.clearInterval(timerInterval);
       timerInterval = null;
     }
-    if (simulationTimeout) {
-      clearTimeout(simulationTimeout);
-      simulationTimeout = null;
-    }
+    activeAbortController = null;
 
     set((state) => {
-      if (state.isRunning && state.activeRun) {
-        const cancelledRun: ExecutionRun = {
-          ...state.activeRun,
-          status: 'failed',
-          durationMs: state.elapsedSeconds * 1000,
-        };
-        get().addLog('warn', 'System', 'Execution cancelled by user.');
-        return {
-          isRunning: false,
-          activeRun: null,
-          runs: [cancelledRun, ...state.runs],
-        };
+      if (!state.isRunning || !state.activeRun) {
+        return { isRunning: false, activeRun: null };
       }
-      return { isRunning: false, activeRun: null };
+      const cancelledRun: ExecutionRun = {
+        ...state.activeRun,
+        status: 'failed',
+        durationMs: state.elapsedSeconds * 1000,
+      };
+      const log: LogEntry = {
+        id: `${Date.now()}-cancel`,
+        timestamp: new Date().toLocaleTimeString(),
+        level: 'warn',
+        nodeName: 'System',
+        message: 'Execution cancelled by user.',
+      };
+      return {
+        isRunning: false,
+        activeRun: null,
+        runs: [cancelledRun, ...state.runs],
+        logs: [...state.logs, log],
+      };
     });
   },
 }));

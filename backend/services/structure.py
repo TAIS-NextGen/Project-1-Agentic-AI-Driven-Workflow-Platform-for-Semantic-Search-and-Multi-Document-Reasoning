@@ -4,16 +4,22 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from backend.settings import settings
+
 logger = logging.getLogger(__name__)
 
 
 class StructureAnalyzerService:
-    async def analyze(self, file_path: str | Path, strategy: str = "auto") -> dict[str, Any]:
+    async def analyze(self, file_path: str | Path, strategy: str = "auto", languages: str = "ara+eng+fra") -> dict[str, Any]:
+        self._ensure_tesseract()
+
         from unstructured.partition.auto import partition
 
+        ocr_languages = [lang.strip() for lang in languages.split("+") if lang.strip()]
         elements = partition(
             filename=str(file_path),
             strategy=strategy,
+            languages=ocr_languages,
             include_page_breaks=True,
         )
 
@@ -78,6 +84,24 @@ class StructureAnalyzerService:
             "pages": page_list,
             "summary": self._build_summary(page_list),
         }
+
+    @staticmethod
+    def _ensure_tesseract():
+        path = settings.ocr_tesseract_path.strip()
+        if not path:
+            return
+        try:
+            import unstructured_pytesseract
+
+            unstructured_pytesseract.pytesseract.tesseract_cmd = path
+        except ImportError:
+            pass
+        try:
+            import pytesseract
+
+            pytesseract.pytesseract.tesseract_cmd = path
+        except ImportError:
+            pass
 
     @staticmethod
     def _map_element_type(unstructured_type: str) -> str:

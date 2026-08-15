@@ -318,3 +318,46 @@
   font-size: 12px;
   z-index: 10;
 }
+
+.headerActions { display: flex; align-items: center; gap: 10px; }
+.themeToggle {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  color: var(--text-muted);
+  background: var(--surface-soft);
+  cursor: pointer;
+}
+.themeToggle:hover { color: hsl(var(--color-primary)); border-color: hsla(var(--color-primary), .35); }
+
+:global(html[data-theme='light']) .container {
+  background:
+    radial-gradient(circle at 8% 5%, rgba(99, 102, 241, .09), transparent 26%),
+    radial-gradient(circle at 92% 42%, rgba(168, 85, 247, .07), transparent 28%),
+    #f7f9fd;
+}
+:global(html[data-theme='light']) .glow { opacity: .08; }
+:global(html[data-theme='light']) .logoText {
+  background: linear-gradient(90deg, #172033, #4f46e5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+:global(html[data-theme='light']) .gradientText {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+:global(html[data-theme='light']) .visualCard,
+:global(html[data-theme='light']) .featureCard {
+  background: rgba(255,255,255,.9);
+  border-color: rgba(71,85,105,.13);
+  box-shadow: 0 22px 55px rgba(71,85,105,.14);
+}
+:global(html[data-theme='light']) .mockNode {
+  background: #f8fafc;
+  border-color: rgba(71,85,105,.12);
+  box-shadow: 0 5px 15px rgba(71,85,105,.08);
+}

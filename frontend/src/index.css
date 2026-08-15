@@ -1,44 +1,68 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
+
 :root {
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  
-  /* Deep Futuristic Colors */
+
   --bg-deep: #07080e;
   --bg-darker: #0c0e16;
   --bg-dark: #121624;
-  --bg-card: rgba(22, 28, 45, 0.45);
-  --bg-card-hover: rgba(30, 38, 60, 0.6);
+  --bg-card: rgba(22, 28, 45, 0.58);
+  --bg-card-hover: rgba(30, 38, 60, 0.72);
+  --surface-raised: rgba(18, 22, 38, .88);
+  --surface-soft: rgba(255, 255, 255, .045);
+  --surface-subtle: rgba(255, 255, 255, .025);
+  --surface-border: rgba(148, 163, 184, .12);
+  --surface-border-strong: rgba(148, 163, 184, .2);
   --border-glow: rgba(99, 102, 241, 0.15);
   --border-glow-hover: rgba(99, 102, 241, 0.35);
-  
-  /* Text colors */
+
   --text-main: #f3f4f6;
   --text-muted: #9ca3af;
   --text-dim: #6b7280;
 
-  /* Accent Glows (HSL for transparency support) */
-  --color-primary: 239, 84%, 67%; /* #6366f1 Indigo */
-  --color-success: 142, 71%, 45%; /* #22c55e Green */
-  --color-warning: 37, 98%, 53%;  /* #f97316 Orange */
-  --color-danger: 350, 89%, 60%;  /* #ef4444 Red */
-  --color-info: 199, 89%, 48%;    /* #0ea5e9 Sky */
-  --color-purple: 271, 91%, 65%;  /* #a855f7 Purple */
-  --color-pink: 330, 81%, 60%;    /* #ec4899 Pink */
+  --color-primary: 239, 84%, 67%;
+  --color-success: 142, 71%, 45%;
+  --color-warning: 37, 98%, 53%;
+  --color-danger: 350, 89%, 60%;
+  --color-info: 199, 89%, 48%;
+  --color-purple: 271, 91%, 65%;
+  --color-pink: 330, 81%, 60%;
 
-  /* Glassmorphism settings */
   --glass-blur: blur(12px) saturate(120%);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.05);
-  --glass-border-hover: 1px solid rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.06);
+  --glass-border-hover: 1px solid rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.32);
+  --shadow-card: 0 16px 44px rgba(0, 0, 0, .24);
 
-  /* Categories Colors */
   --cat-preprocessing: #06b6d4;
   --cat-ocr: #f97316;
   --cat-rag: #a855f7;
   --cat-extraction: #ec4899;
   --cat-export: #eab308;
   --cat-logic: #3b82f6;
+}
+
+html[data-theme='light'] {
+  --bg-deep: #f4f7fb;
+  --bg-darker: #ffffff;
+  --bg-dark: #edf2f8;
+  --bg-card: rgba(255, 255, 255, .9);
+  --bg-card-hover: #ffffff;
+  --surface-raised: rgba(255, 255, 255, .94);
+  --surface-soft: #f5f7fb;
+  --surface-subtle: #f8fafc;
+  --surface-border: rgba(71, 85, 105, .14);
+  --surface-border-strong: rgba(71, 85, 105, .23);
+  --border-glow: rgba(79, 70, 229, .14);
+  --border-glow-hover: rgba(79, 70, 229, .3);
+  --text-main: #172033;
+  --text-muted: #60708a;
+  --text-dim: #8996aa;
+  --glass-border: 1px solid rgba(71, 85, 105, .13);
+  --glass-border-hover: 1px solid rgba(79, 70, 229, .25);
+  --glass-shadow: 0 12px 35px rgba(49, 61, 84, .11);
+  --shadow-card: 0 18px 45px rgba(71, 85, 105, .12);
 }
 
 *,
@@ -167,4 +191,48 @@ body {
 .btn-secondary:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+
+html[data-theme='light'] ::-webkit-scrollbar-track { background: #edf2f8; }
+html[data-theme='light'] ::-webkit-scrollbar-thumb { background: rgba(71, 85, 105, .2); }
+
+button, input, select, textarea { font-family: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
+  outline: 3px solid hsla(var(--color-primary), .22);
+  outline-offset: 2px;
+}
+
+::selection { background: hsla(var(--color-primary), .25); }
+
+html[data-theme='light'] .btn-secondary {
+  color: #27344b;
+  background: #ffffff;
+  border-color: rgba(71, 85, 105, .16);
+  box-shadow: 0 7px 20px rgba(71, 85, 105, .08);
+}
+
+html[data-theme='light'] .btn-secondary:hover {
+  background: #f8fafc;
+  border-color: rgba(79, 70, 229, .25);
+}
+
+html[data-theme='light'] .glass-card {
+  background: rgba(255, 255, 255, .88);
+  border-color: rgba(71, 85, 105, .13);
+  box-shadow: 0 14px 38px rgba(71, 85, 105, .1);
+}
+
+html[data-theme='light'] .glass-card:hover {
+  background: #ffffff;
+  box-shadow: 0 18px 45px rgba(71, 85, 105, .13);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
 }

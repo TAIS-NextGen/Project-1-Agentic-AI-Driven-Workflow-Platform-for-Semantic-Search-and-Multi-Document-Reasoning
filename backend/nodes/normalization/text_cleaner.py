@@ -111,6 +111,14 @@ class TextCleanerNode(BaseNode):
             default="%Y-%m-%d",
             description="strftime format used when normalize_dates is enabled",
         ),
+        ConfigField(
+            key="text",
+            label="Text",
+            type="text",
+            required=False,
+            default="",
+            description="Text to clean. Leave empty if provided via upstream connection.",
+        ),
     ]
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
@@ -120,7 +128,7 @@ class TextCleanerNode(BaseNode):
         try:
             config = self.get_resolved_config()
 
-            text = ctx.get_input("text", "")
+            text = ctx.get_input("text", "") or str(config.get("text", ""))
             if not isinstance(text, str) or not text.strip():
                 file_id = config.get("file_id", "")
                 if not file_id:

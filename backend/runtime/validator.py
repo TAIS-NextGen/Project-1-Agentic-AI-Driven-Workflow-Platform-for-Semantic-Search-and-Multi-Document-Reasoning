@@ -59,6 +59,8 @@ class WorkflowValidator:
     def _validate_port_compatibility(self) -> list[str]:
         errors = []
         for e in self.graph.edges:
+            if e.kind == "control":
+                continue
             source_node = self.graph.get_node(e.source_id)
             target_node = self.graph.get_node(e.target_id)
             if not source_node or not target_node:

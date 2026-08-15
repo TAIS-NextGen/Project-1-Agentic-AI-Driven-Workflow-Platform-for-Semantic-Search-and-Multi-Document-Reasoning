@@ -1,15 +1,36 @@
 from __future__ import annotations
 
+import asyncio
+import logging
+import threading
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
-import os
 
-from backend.api import nodes, workflows, documents
+from backend.api import nodes, workflows, documents, qa
 from backend.settings import settings
+
+logger = logging.getLogger(__name__)
+
+# Configure Tesseract path for unstructured_pytesseract
+_tesseract_path = settings.ocr_tesseract_path.strip()
+if _tesseract_path:
+    try:
+        import unstructured_pytesseract
+
+        unstructured_pytesseract.pytesseract.tesseract_cmd = _tesseract_path
+    except ImportError:
+        pass
+    try:
+        import pytesseract
+
+        pytesseract.pytesseract.tesseract_cmd = _tesseract_path
+    except ImportError:
+        pass
 
 app = FastAPI(
     title=settings.app_name,
@@ -18,11 +39,14 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Ensure directories exist before mounting static files
-Path("data/uploads").mkdir(parents=True, exist_ok=True)
-Path("data/storage").mkdir(parents=True, exist_ok=True)
+# Ensure configured directories exist and expose them under stable public URLs.
+upload_dir = Path(settings.upload_dir)
+storage_dir = Path(settings.storage_dir)
+upload_dir.mkdir(parents=True, exist_ok=True)
+storage_dir.mkdir(parents=True, exist_ok=True)
 
-app.mount("/data", StaticFiles(directory="data"), name="data")
+app.mount("/data/uploads", StaticFiles(directory=upload_dir), name="uploads")
+app.mount("/data/storage", StaticFiles(directory=storage_dir), name="storage")
 
 app.add_middleware(
     CORSMiddleware,
@@ -35,6 +59,43 @@ app.add_middleware(
 app.include_router(nodes.router)
 app.include_router(workflows.router)
 app.include_router(documents.router)
+app.include_router(qa.router)
+
+
+def _warmup_models() -> None:
+    """Warm up heavy models in the background so the first request is fast."""
+    try:
+        from backend.nodes.extraction.paddle_ocr import _get_paddle_ocr
+
+        logger.info("Warming up PaddleOCR model (background)...")
+        _get_paddle_ocr("en", False, "medium")
+        logger.info("PaddleOCR model ready.")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"PaddleOCR warm-up failed: {e}")
+
+    try:
+        from backend.services.llm import LLMService
+
+        async def _warm_ollama() -> None:
+            await LLMService(model="nomic-embed-text").embed_batch(["warmup"])
+
+        asyncio.run(_warm_ollama())
+        logger.info("Embedding/LLM models ready.")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Embedding/LLM warm-up failed: {e}")
+
+
+# Restore a previously saved QA index (no OCR needed for queries).
+try:
+    from backend.services.qa_index import QAIndexService
+
+    if QAIndexService.load():
+        logger.info("QA index loaded from disk.")
+except Exception as e:  # noqa: BLE001
+    logger.warning(f"Failed to load QA index: {e}")
+
+# Warm up models in a background thread (does not block startup).
+threading.Thread(target=_warmup_models, daemon=True).start()
 
 
 @app.get("/health")

@@ -1,105 +1,194 @@
-import { useState } from 'react';
-import type { AppRoute } from '../../types';
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import {
+  deleteDocument,
+  documentDownloadUrl,
+  importDocumentFromUrl,
+  listDocuments,
+  uploadDocuments,
+} from '../../services/backendApi';
+import { useFlowStore } from '../../store/flowStore';
+import { useWorkflowStore } from '../../store/workflowStore';
+import type { AppRoute, DocumentRecord } from '../../types';
 import styles from './DocumentsView.module.css';
 
 interface DocumentsViewProps {
   onNavigate: (route: AppRoute) => void;
 }
 
-interface DocFile {
-  id: string;
-  name: string;
-  type: string;
-  size: string;
-  status: 'success' | 'running' | 'idle' | 'error';
-  tags: string[];
-  modified: string;
-  folder: string;
+type ImportSource = 'local' | 'cloud-url' | 'gdrive' | 'onedrive';
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const mockFiles: DocFile[] = [
-  {
-    id: 'doc-1',
-    name: 'ACME_Contract_Jan.pdf',
-    type: 'PDF',
-    size: '1.2 MB',
-    status: 'success',
-    tags: ['contract', 'Q1'],
-    modified: '2h ago',
-    folder: 'Contracts 2024',
-  },
-  {
-    id: 'doc-2',
-    name: 'HealthCo_MSA.pdf',
-    type: 'PDF',
-    size: '840 KB',
-    status: 'success',
-    tags: ['contract'],
-    modified: '2h ago',
-    folder: 'Contracts 2024',
-  },
-  {
-    id: 'doc-3',
-    name: 'Invoice_Q4.xlsx',
-    type: 'XLSX',
-    size: '120 KB',
-    status: 'running',
-    tags: ['invoice'],
-    modified: 'Now',
-    folder: 'Financial Reports',
-  },
-  {
-    id: 'doc-4',
-    name: 'Meeting_Notes_Mar.docx',
-    type: 'DOCX',
-    size: '56 KB',
-    status: 'idle',
-    tags: [],
-    modified: '3d ago',
-    folder: 'General',
-  },
-  {
-    id: 'doc-5',
-    name: 'Patient_Record_4821.pdf',
-    type: 'PDF',
-    size: '2.1 MB',
-    status: 'error',
-    tags: ['medical'],
-    modified: '1d ago',
-    folder: 'Medical Records',
-  },
-  {
-    id: 'doc-6',
-    name: 'Budget_2025.xlsx',
-    type: 'XLSX',
-    size: '340 KB',
-    status: 'success',
-    tags: ['finance'],
-    modified: '5d ago',
-    folder: 'Financial Reports',
-  },
-];
+function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown';
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+}
 
-const folders = [
-  { name: 'Contracts 2024', count: 47, updated: '2h ago' },
-  { name: 'Medical Records', count: 128, updated: '1d ago' },
-  { name: 'Financial Reports', count: 34, updated: '3d ago' },
-  { name: 'HR Documents', count: 89, updated: '1w ago' },
-];
+function fileIcon(document: DocumentRecord): string {
+  if (document.mime_type.startsWith('image/')) return '🖼️';
+  if (document.extension === '.pdf') return '📕';
+  if (['.xlsx', '.xlsm', '.csv'].includes(document.extension)) return '📗';
+  if (document.extension === '.docx') return '📘';
+  return '📄';
+}
 
 export function DocumentsView({ onNavigate }: DocumentsViewProps) {
   const [subView, setSubView] = useState<'library' | 'import'>('library');
-  const [selectedFile, setSelectedFile] = useState<DocFile | null>(mockFiles[2]); // Default selected file
-  const [activeConnector, setActiveConnector] = useState('gdrive');
-  const [importSelected, setImportSelected] = useState<Record<string, boolean>>({
-    'file-1': true,
-    'file-2': true,
-    'file-3': true,
-  });
-  const [batchName, setBatchName] = useState('Contracts — Q1 2025');
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentRecord | null>(null);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeSource, setActiveSource] = useState<ImportSource>('local');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [cloudUrl, setCloudUrl] = useState('');
+  const [cloudFilename, setCloudFilename] = useState('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const refreshRequestIdRef = useRef(0);
 
-  const toggleImportSelect = (id: string) => {
-    setImportSelected(prev => ({ ...prev, [id]: !prev[id] }));
+  const resetFlow = useFlowStore((state) => state.resetFlow);
+  const addNode = useFlowStore((state) => state.addNode);
+  const createWorkflow = useWorkflowStore((state) => state.createWorkflow);
+  const saveWorkflow = useWorkflowStore((state) => state.saveWorkflow);
+
+  const refreshDocuments = async () => {
+    const requestId = ++refreshRequestIdRef.current;
+    setLoading(true);
+    setError(null);
+    try {
+      const loaded = await listDocuments();
+      // React StrictMode can launch two requests in development. Ignore any
+      // older response so a startup failure cannot overwrite a later success.
+      if (requestId !== refreshRequestIdRef.current) return;
+      setDocuments(loaded);
+      setSelectedDocument((current) => {
+        if (!current) return loaded[0] || null;
+        return loaded.find((item) => item.file_id === current.file_id) || loaded[0] || null;
+      });
+      setError(null);
+    } catch (caught) {
+      if (requestId !== refreshRequestIdRef.current) return;
+      setError(caught instanceof Error ? caught.message : 'Unable to load documents.');
+    } finally {
+      if (requestId === refreshRequestIdRef.current) setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshDocuments();
+  }, []);
+
+  const filteredDocuments = useMemo(() => {
+    const normalized = search.trim().toLowerCase();
+    return documents.filter((document) => (
+      !normalized
+      || document.filename.toLowerCase().includes(normalized)
+      || document.extension.toLowerCase().includes(normalized)
+    ));
+  }, [documents, search]);
+
+  const imageCount = documents.filter((document) => document.mime_type.startsWith('image/')).length;
+  const pdfCount = documents.filter((document) => document.extension === '.pdf').length;
+  const officeCount = documents.filter((document) => ['.docx', '.xlsx', '.xlsm', '.csv'].includes(document.extension)).length;
+
+  const appendFiles = (files: File[]) => {
+    const allowed = files.filter((file) => !selectedFiles.some((existing) => (
+      existing.name === file.name && existing.size === file.size && existing.lastModified === file.lastModified
+    )));
+    setSelectedFiles((current) => [...current, ...allowed]);
+    setUploadMessage(null);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragActive(false);
+    appendFiles(Array.from(event.dataTransfer.files));
+  };
+
+  const handleLocalUpload = async () => {
+    if (!selectedFiles.length) {
+      setUploadMessage('Select at least one file.');
+      return;
+    }
+    setUploading(true);
+    setUploadMessage(null);
+    try {
+      const result = await uploadDocuments(selectedFiles);
+      if (result.documents.length) {
+        setDocuments((current) => [
+          ...result.documents,
+          ...current.filter((existing) => !result.documents.some((uploaded) => uploaded.file_id === existing.file_id)),
+        ]);
+        setSelectedDocument(result.documents[0]);
+      }
+      setSelectedFiles([]);
+      const errorText = result.errors.length
+        ? ` ${result.failed} file(s) rejected: ${result.errors.map((item) => `${item.filename}: ${item.error}`).join('; ')}`
+        : '';
+      setUploadMessage(`${result.uploaded} file(s) imported successfully.${errorText}`);
+      if (result.uploaded) window.setTimeout(() => setSubView('library'), 500);
+    } catch (caught) {
+      setUploadMessage(caught instanceof Error ? caught.message : 'Upload failed.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCloudImport = async () => {
+    if (!cloudUrl.trim()) {
+      setUploadMessage('Enter a public direct file URL.');
+      return;
+    }
+    setUploading(true);
+    setUploadMessage(null);
+    try {
+      const imported = await importDocumentFromUrl(cloudUrl.trim(), cloudFilename.trim() || undefined);
+      setDocuments((current) => [imported, ...current.filter((item) => item.file_id !== imported.file_id)]);
+      setSelectedDocument(imported);
+      setCloudUrl('');
+      setCloudFilename('');
+      setUploadMessage(`${imported.filename} imported from the cloud URL.`);
+      window.setTimeout(() => setSubView('library'), 500);
+    } catch (caught) {
+      setUploadMessage(caught instanceof Error ? caught.message : 'Cloud import failed.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (document: DocumentRecord) => {
+    if (!window.confirm(`Delete “${document.filename}” from local storage?`)) return;
+    try {
+      await deleteDocument(document.file_id);
+      const remaining = documents.filter((item) => item.file_id !== document.file_id);
+      setDocuments(remaining);
+      setSelectedDocument((current) => current?.file_id === document.file_id ? remaining[0] || null : current);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Delete failed.');
+    }
+  };
+
+  const handleUseInWorkflow = (document: DocumentRecord) => {
+    resetFlow();
+    const workflowId = createWorkflow(`Process ${document.filename}`);
+    addNode('document-input', { x: 140, y: 200 }, {
+      file_id: document.file_id,
+      filename: document.filename,
+      mime_type: document.mime_type,
+      size_bytes: document.size_bytes,
+      uploaded_at: document.uploaded_at,
+    });
+    const flow = useFlowStore.getState();
+    saveWorkflow(workflowId, { nodes: flow.nodes, edges: flow.edges, viewport: flow.viewport });
+    onNavigate('workflows');
   };
 
   return (
@@ -107,291 +196,178 @@ export function DocumentsView({ onNavigate }: DocumentsViewProps) {
       {subView === 'library' ? (
         <div className={styles.libraryContainer}>
           <div className={styles.mainContent}>
-            {/* Library Header */}
             <header className={styles.header}>
               <div>
                 <h1 className={styles.title}>Document Library</h1>
-                <p className={styles.subtitle}>302 documents across 4 folders</p>
+                <p className={styles.subtitle}>{documents.length} real document{documents.length === 1 ? '' : 's'} stored by the backend</p>
               </div>
               <div className={styles.headerActions}>
                 <div className={styles.searchBar}>
-                  <input type="text" placeholder="Search documents..." className={styles.searchInput} />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    type="text"
+                    placeholder="Search documents..."
+                    className={styles.searchInput}
+                  />
                 </div>
-                <button className="btn-secondary">Filter</button>
-                <button onClick={() => setSubView('import')} className="btn-premium">Import</button>
+                <button onClick={() => void refreshDocuments()} className="btn-secondary">Refresh</button>
+                <button onClick={() => { setUploadMessage(null); setSubView('import'); }} className="btn-premium">Import</button>
               </div>
             </header>
 
-            {/* Folders Grid */}
+            {error && <div className={styles.errorBanner}><strong>Backend error:</strong> {error} Check that `run.bat` started the API on port 8000.</div>}
+
             <section className={styles.foldersSection}>
-              <h3>Folders</h3>
+              <h3>Overview</h3>
               <div className={styles.foldersGrid}>
-                {folders.map(f => (
-                  <div key={f.name} className={`glass-card ${styles.folderCard}`}>
-                    <div className={styles.folderHeader}>
-                      <span className={styles.folderIcon}>📁</span>
-                      <span className={styles.folderDots}>•••</span>
-                    </div>
-                    <h4>{f.name}</h4>
-                    <p>{f.count} files • {f.updated}</p>
+                {[
+                  { name: 'All documents', count: documents.length, icon: '📁' },
+                  { name: 'PDF files', count: pdfCount, icon: '📕' },
+                  { name: 'Office & tables', count: officeCount, icon: '📊' },
+                  { name: 'Images', count: imageCount, icon: '🖼️' },
+                ].map((folder) => (
+                  <div key={folder.name} className={`glass-card ${styles.folderCard}`}>
+                    <div className={styles.folderHeader}><span className={styles.folderIcon}>{folder.icon}</span></div>
+                    <h4>{folder.name}</h4>
+                    <p>{folder.count} file{folder.count === 1 ? '' : 's'}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            {/* Files Section */}
             <section className={styles.filesSection}>
               <h3>Files</h3>
               <div className={styles.tableWrapper}>
-                <table className={styles.filesTable}>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Type</th>
-                      <th>Status</th>
-                      <th>Tags</th>
-                      <th>Modified</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mockFiles.map((file) => {
-                      const isSelected = selectedFile?.id === file.id;
-                      const fileIcon = file.type === 'PDF' ? '📕' : file.type === 'XLSX' ? '📗' : '📘';
-                      
-                      return (
+                {loading ? (
+                  <div className={styles.tableState}>Loading documents from the backend…</div>
+                ) : !filteredDocuments.length ? (
+                  <div className={styles.tableState}>
+                    <span>📭</span>
+                    <strong>{documents.length ? 'No matching document' : 'No imported documents'}</strong>
+                    {!documents.length && <button className="btn-premium" onClick={() => setSubView('import')}>Import a document</button>}
+                  </div>
+                ) : (
+                  <table className={styles.filesTable}>
+                    <thead><tr><th>Name</th><th>Type</th><th>Source</th><th>Size</th><th>Imported</th><th></th></tr></thead>
+                    <tbody>
+                      {filteredDocuments.map((document) => (
                         <tr
-                          key={file.id}
-                          className={isSelected ? styles.selectedRow : ''}
-                          onClick={() => setSelectedFile(file)}
+                          key={document.file_id}
+                          className={selectedDocument?.file_id === document.file_id ? styles.selectedRow : ''}
+                          onClick={() => setSelectedDocument(document)}
                         >
-                          <td>
-                            <div className={styles.fileNameCell}>
-                              <span className={styles.fileIcon}>{fileIcon}</span>
-                              <span className={styles.fileName}>{file.name}</span>
-                            </div>
-                          </td>
-                          <td className={styles.fileType}>{file.type} • {file.size}</td>
-                          <td>
-                            <span className={`${styles.status} ${styles[file.status]}`}>
-                              <span className={styles.statusDot}></span>
-                              {file.status}
-                            </span>
-                          </td>
-                          <td>
-                            <div className={styles.tagList}>
-                              {file.tags.map(t => (
-                                <span key={t} className={styles.tag}>{t}</span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className={styles.modified}>{file.modified}</td>
+                          <td><div className={styles.fileNameCell}><span className={styles.fileIcon}>{fileIcon(document)}</span><span className={styles.fileName}>{document.filename}</span></div></td>
+                          <td className={styles.fileType}>{document.extension.replace('.', '').toUpperCase()}</td>
+                          <td><span className={`${styles.status} ${styles.success}`}><span className={styles.statusDot}></span>{document.source === 'cloud-url' ? 'Cloud URL' : 'Local'}</span></td>
+                          <td className={styles.modified}>{formatSize(document.size_bytes)}</td>
+                          <td className={styles.modified}>{formatDate(document.uploaded_at)}</td>
                           <td className={styles.actions}>
-                            <button
-                              type="button"
-                              className={styles.playBtn}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigate('workflows');
-                              }}
-                              title="Run workflow"
-                            >
-                              ▶️
-                            </button>
+                            <button className={styles.playBtn} onClick={(event) => { event.stopPropagation(); handleUseInWorkflow(document); }} title="Use in a new workflow">▶️</button>
                           </td>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </section>
           </div>
 
-          {/* Details Sidebar / Drawer */}
-          {selectedFile && (
+          {selectedDocument && (
             <aside className={styles.previewDrawer}>
-              <div className={styles.drawerHeader}>
-                <h3>Preview</h3>
-                <button className={styles.closeBtn} onClick={() => setSelectedFile(null)}>×</button>
-              </div>
-              <div className={styles.previewBox}>
-                <div className={styles.previewDocIcon}>
-                  {selectedFile.type === 'PDF' ? '📕' : selectedFile.type === 'XLSX' ? '📗' : '📘'}
-                </div>
-                <h4>{selectedFile.name}</h4>
-              </div>
+              <div className={styles.drawerHeader}><h3>Document details</h3><button className={styles.closeBtn} onClick={() => setSelectedDocument(null)}>×</button></div>
+              <div className={styles.previewBox}><div className={styles.previewDocIcon}>{fileIcon(selectedDocument)}</div><h4>{selectedDocument.filename}</h4></div>
               <div className={styles.metaList}>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>Type</span>
-                  <span className={styles.metaValue}>{selectedFile.type}</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>Size</span>
-                  <span className={styles.metaValue}>{selectedFile.size}</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>Folder</span>
-                  <span className={styles.metaValue}>{selectedFile.folder}</span>
-                </div>
-                <div className={styles.metaItem}>
-                  <span className={styles.metaLabel}>Status</span>
-                  <span className={`${styles.metaValue} ${styles[selectedFile.status]}`}>{selectedFile.status}</span>
-                </div>
+                <div className={styles.metaItem}><span className={styles.metaLabel}>Type</span><span className={styles.metaValue}>{selectedDocument.mime_type}</span></div>
+                <div className={styles.metaItem}><span className={styles.metaLabel}>Size</span><span className={styles.metaValue}>{formatSize(selectedDocument.size_bytes)}</span></div>
+                <div className={styles.metaItem}><span className={styles.metaLabel}>Source</span><span className={styles.metaValue}>{selectedDocument.source}</span></div>
+                <div className={styles.metaItem}><span className={styles.metaLabel}>File ID</span><span className={styles.metaValue} title={selectedDocument.file_id}>{selectedDocument.file_id.slice(0, 8)}…</span></div>
               </div>
               <div className={styles.drawerActions}>
-                <button
-                  className="btn-premium"
-                  onClick={() => onNavigate('workflows')}
-                  style={{ width: '100%', justifyContent: 'center' }}
-                >
-                  Run Workflow
-                </button>
-                <button className="btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
-                  Download
-                </button>
+                <button className="btn-premium" onClick={() => handleUseInWorkflow(selectedDocument)} style={{ width: '100%', justifyContent: 'center' }}>Use in new workflow</button>
+                <button className="btn-secondary" onClick={() => window.open(documentDownloadUrl(selectedDocument.file_id), '_blank')} style={{ width: '100%', justifyContent: 'center' }}>Download</button>
+                <button className={styles.deleteDocumentButton} onClick={() => void handleDelete(selectedDocument)}>Delete document</button>
               </div>
             </aside>
           )}
         </div>
       ) : (
-        /* IMPORT WIZARD SUB-VIEW */
         <div className={styles.importContainer}>
           <div className={styles.importHeaderBar}>
-            <button className={styles.backBtn} onClick={() => setSubView('library')}>
-              ← Back to Library
-            </button>
+            <button className={styles.backBtn} onClick={() => setSubView('library')}>← Back to Library</button>
             <h2>Import Documents</h2>
-            <p>Choose your source, select files, then continue to build your workflow.</p>
+            <p>Upload real local files, or download a file from a public cloud URL.</p>
           </div>
 
           <div className={styles.wizardLayout}>
-            {/* Left Connectors Sidebar */}
             <aside className={styles.connectorList}>
-              <button
-                className={`${styles.connectorTab} ${activeConnector === 'gdrive' ? styles.connectorActive : ''}`}
-                onClick={() => setActiveConnector('gdrive')}
-              >
-                <span className={styles.conIcon}>🤖</span> Google Drive
-                <span className={styles.conBadge}>Connected</span>
-              </button>
-              <button
-                className={`${styles.connectorTab} ${activeConnector === 'onedrive' ? styles.connectorActive : ''}`}
-                onClick={() => setActiveConnector('onedrive')}
-              >
-                <span className={styles.conIcon}>☁️</span> OneDrive
-                <span className={styles.conBadge}>Connected</span>
-              </button>
-              <button className={styles.connectorTab}>
-                <span className={styles.conIcon}>📦</span> Dropbox
-              </button>
-              <button className={styles.connectorTab}>
-                <span className={styles.conIcon}>🗄️</span> Amazon S3
-              </button>
-              <button className={styles.connectorTab}>
-                <span className={styles.conIcon}>🏢</span> SharePoint
-              </button>
+              <button className={`${styles.connectorTab} ${activeSource === 'local' ? styles.connectorActive : ''}`} onClick={() => { setActiveSource('local'); setUploadMessage(null); }}>💻 Local files <span className={styles.conBadge}>Ready</span></button>
+              <button className={`${styles.connectorTab} ${activeSource === 'cloud-url' ? styles.connectorActive : ''}`} onClick={() => { setActiveSource('cloud-url'); setUploadMessage(null); }}>🌐 Cloud URL <span className={styles.conBadge}>Ready</span></button>
+              <button className={`${styles.connectorTab} ${activeSource === 'gdrive' ? styles.connectorActive : ''}`} onClick={() => setActiveSource('gdrive')}>🔺 Google Drive <span className={styles.setupBadge}>OAuth needed</span></button>
+              <button className={`${styles.connectorTab} ${activeSource === 'onedrive' ? styles.connectorActive : ''}`} onClick={() => setActiveSource('onedrive')}>☁️ OneDrive <span className={styles.setupBadge}>OAuth needed</span></button>
             </aside>
 
-            {/* Center File Browser */}
             <section className={styles.fileBrowser}>
-              <div className={styles.browserHeader}>
-                <span className={styles.folderBreadcrumb}>📁 My Drive &gt; Contracts 2024</span>
-                <input type="text" placeholder="Search files..." className={styles.browserSearch} />
-              </div>
-              
-              <div className={styles.browserList}>
-                <div className={styles.browserItem}>
-                  <input
-                    type="checkbox"
-                    checked={importSelected['file-1'] || false}
-                    onChange={() => toggleImportSelect('file-1')}
-                  />
-                  <span>📕 ACME_Contract_Jan.pdf</span>
-                  <span className={styles.browserSize}>1.2 MB</span>
+              {activeSource === 'local' && (
+                <>
+                  <div className={styles.browserHeader}><div><strong>Local upload</strong><p>Select several files or drag them here.</p></div></div>
+                  <div
+                    className={`${styles.dropZone} ${dragActive ? styles.dropZoneActive : ''}`}
+                    onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDragLeave={() => setDragActive(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      hidden
+                      accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif,.bmp,.webp,.docx,.txt,.md,.csv,.xlsx,.xlsm"
+                      onChange={(event) => appendFiles(Array.from(event.target.files || []))}
+                    />
+                    <span>⬆</span><strong>Drop files here or click to browse</strong><small>PDF, images, DOCX, XLSX, CSV, TXT and Markdown · max 50 MB each</small>
+                  </div>
+                  <div className={styles.selectedUploadList}>
+                    {selectedFiles.map((file, index) => (
+                      <div key={`${file.name}-${file.lastModified}`}><span>📄 {file.name}</span><small>{formatSize(file.size)}</small><button onClick={() => setSelectedFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}>×</button></div>
+                    ))}
+                    {!selectedFiles.length && <p>No local files selected.</p>}
+                  </div>
+                </>
+              )}
+
+              {activeSource === 'cloud-url' && (
+                <div className={styles.cloudForm}>
+                  <div className={styles.cloudIcon}>🌐</div>
+                  <h3>Import from a public direct URL</h3>
+                  <p>The backend downloads the file and stores it in the same document library. Private URLs and internal network addresses are blocked.</p>
+                  <label>Direct file URL</label>
+                  <input value={cloudUrl} onChange={(event) => setCloudUrl(event.target.value)} placeholder="https://example.com/report.pdf" />
+                  <label>Filename override <span>(optional)</span></label>
+                  <input value={cloudFilename} onChange={(event) => setCloudFilename(event.target.value)} placeholder="report.pdf" />
                 </div>
-                <div className={styles.browserItem}>
-                  <input
-                    type="checkbox"
-                    checked={importSelected['file-2'] || false}
-                    onChange={() => toggleImportSelect('file-2')}
-                  />
-                  <span>📕 HealthCo_MSA.pdf</span>
-                  <span className={styles.browserSize}>840 KB</span>
+              )}
+
+              {(activeSource === 'gdrive' || activeSource === 'onedrive') && (
+                <div className={styles.connectorSetup}>
+                  <span>{activeSource === 'gdrive' ? '🔺' : '☁️'}</span>
+                  <h3>{activeSource === 'gdrive' ? 'Google Drive' : 'OneDrive'} connector</h3>
+                  <p>This connector is no longer shown as falsely connected. A real integration requires an OAuth client ID, redirect URL and user authorization. Use Local files or Cloud URL immediately.</p>
+                  <button className="btn-secondary" onClick={() => setActiveSource('cloud-url')}>Use Cloud URL instead</button>
                 </div>
-                <div className={styles.browserItem}>
-                  <input
-                    type="checkbox"
-                    checked={importSelected['file-3'] || false}
-                    onChange={() => toggleImportSelect('file-3')}
-                  />
-                  <span>📗 Invoice_Q4.xlsx</span>
-                  <span className={styles.browserSize}>120 KB</span>
-                </div>
-                <div className={styles.browserItem}>
-                  <input type="checkbox" disabled />
-                  <span>📘 meeting_notes.docx</span>
-                  <span className={styles.browserSize}>56 KB</span>
-                </div>
-              </div>
+              )}
             </section>
 
-            {/* Right Summary Sidebar */}
             <aside className={styles.importSummary}>
-              <h3>Selected Files</h3>
-              <div className={styles.selectedFilesList}>
-                {importSelected['file-1'] && (
-                  <div className={styles.sumFileItem}>
-                    <span>ACME_Contract_Jan.pdf</span>
-                    <span>1.2 MB</span>
-                  </div>
-                )}
-                {importSelected['file-2'] && (
-                  <div className={styles.sumFileItem}>
-                    <span>HealthCo_MSA.pdf</span>
-                    <span>840 KB</span>
-                  </div>
-                )}
-                {importSelected['file-3'] && (
-                  <div className={styles.sumFileItem}>
-                    <span>Invoice_Q4.xlsx</span>
-                    <span className={styles.progressText}>68%</span>
-                  </div>
-                )}
-              </div>
-              
-              <div className={styles.totalRow}>
-                <span>Total size</span>
-                <span>2.2 MB</span>
-              </div>
-
-              <div className={styles.importForm}>
-                <label>Batch Name</label>
-                <input
-                  type="text"
-                  value={batchName}
-                  onChange={(e) => setBatchName(e.target.value)}
-                  className={styles.formInput}
-                />
-                
-                <label>Assign to Workflow</label>
-                <select className={styles.formSelect}>
-                  <option>Invoice Processing Pipeline</option>
-                  <option>Contract Classifier</option>
-                  <option>Medical Records OCR</option>
-                </select>
-              </div>
-
-              <button
-                className="btn-premium"
-                onClick={() => {
-                  setSubView('library');
-                  onNavigate('workflows');
-                }}
-                style={{ width: '100%', justifyContent: 'center', marginTop: '20px' }}
-              >
-                Continue to Workflow →
-              </button>
+              <h3>Import summary</h3>
+              {activeSource === 'local' && <><div className={styles.totalRow}><span>Selected files</span><span>{selectedFiles.length}</span></div><div className={styles.totalRow}><span>Total size</span><span>{formatSize(selectedFiles.reduce((sum, file) => sum + file.size, 0))}</span></div></>}
+              {activeSource === 'cloud-url' && <div className={styles.totalRow}><span>Source</span><span>Public URL</span></div>}
+              {uploadMessage && <div className={styles.uploadFeedback}>{uploadMessage}</div>}
+              {activeSource === 'local' && <button className="btn-premium" disabled={uploading || !selectedFiles.length} onClick={() => void handleLocalUpload()} style={{ width: '100%', justifyContent: 'center', marginTop: 'auto' }}>{uploading ? 'Uploading…' : `Import ${selectedFiles.length || ''} file${selectedFiles.length === 1 ? '' : 's'}`}</button>}
+              {activeSource === 'cloud-url' && <button className="btn-premium" disabled={uploading || !cloudUrl.trim()} onClick={() => void handleCloudImport()} style={{ width: '100%', justifyContent: 'center', marginTop: 'auto' }}>{uploading ? 'Downloading…' : 'Import cloud file'}</button>}
             </aside>
           </div>
         </div>

@@ -18,6 +18,8 @@ class Edge:
     target_id: str
     target_port: str
     is_dynamic: bool = False
+    condition: str | None = None
+    kind: str = "data"
 
 
 class WorkflowGraph:
@@ -39,17 +41,21 @@ class WorkflowGraph:
             if e.source_id != node_id and e.target_id != node_id
         ]
 
-    def add_edge(self, source_id: str, source_port: str, target_id: str, target_port: str) -> Edge:
+    def add_edge(self, source_id: str, source_port: str, target_id: str, target_port: str,
+                 condition: str | None = None, kind: str = "data") -> Edge:
         if source_id not in self._nodes:
             raise ValueError(f"Source node '{source_id}' not found")
         if target_id not in self._nodes:
             raise ValueError(f"Target node '{target_id}' not found")
-        edge = Edge(source_id, source_port, target_id, target_port)
+        edge = Edge(source_id, source_port, target_id, target_port,
+                    condition=condition, kind=kind)
         self._edges.append(edge)
         return edge
 
-    def add_dynamic_edge(self, source_id: str, source_port: str, target_id: str, target_port: str) -> Edge:
-        edge = Edge(source_id, source_port, target_id, target_port, is_dynamic=True)
+    def add_dynamic_edge(self, source_id: str, source_port: str, target_id: str, target_port: str,
+                         condition: str | None = None, kind: str = "data") -> Edge:
+        edge = Edge(source_id, source_port, target_id, target_port, is_dynamic=True,
+                    condition=condition, kind=kind)
         self._edges.append(edge)
         return edge
 
@@ -96,6 +102,8 @@ class WorkflowGraph:
                     "target": e.target_id,
                     "target_port": e.target_port,
                     "is_dynamic": e.is_dynamic,
+                    "condition": e.condition,
+                    "kind": e.kind,
                 }
                 for e in self._edges
             ],
@@ -108,5 +116,6 @@ class WorkflowGraph:
             graph.add_node(n["id"], n["type"], n.get("config"))
         for e in data.get("edges", []):
             graph.add_edge(e["source"], e.get("source_port", "output"),
-                           e["target"], e.get("target_port", "input"))
+                           e["target"], e.get("target_port", "input"),
+                           condition=e.get("condition"), kind=e.get("kind", "data"))
         return graph

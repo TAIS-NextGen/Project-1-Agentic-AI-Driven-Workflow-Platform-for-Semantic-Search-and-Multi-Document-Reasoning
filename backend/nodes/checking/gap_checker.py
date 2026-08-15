@@ -103,8 +103,16 @@ class GapCheckerNode(BaseNode):
             label="Allowed Extensions",
             type="tags",
             required=False,
-            default=[".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".txt"],
+            default=[".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".bmp", ".txt", ".docx"],
             description="Accepted file extensions",
+        ),
+        ConfigField(
+            key="text",
+            label="Text",
+            type="text",
+            required=False,
+            default="",
+            description="Text to analyze directly. Leave empty if reading from file or upstream connection.",
         ),
     ]
 
@@ -126,27 +134,37 @@ class GapCheckerNode(BaseNode):
             file_data: dict[str, Any] | None = ctx.get_input("document")
 
             if not file_data:
-                file_id = config.get("file_id", "")
-                if not file_id:
-                    result.fail("No file provided via input port or 'file_id' config")
+                text = str(config.get("text", ""))
+                if text.strip():
+                    file_data = {"path": "", "filename": "inline_text", "text": text}
+                else:
+                    file_id = config.get("file_id", "")
+                    if not file_id:
+                        result.fail("No file provided via input port, 'file_id' config, or 'text' config")
+                        return result
+                    file_data = await self._resolve_by_file_id(file_id)
+                    if not file_data:
+                        result.fail(f"File with ID '{file_id}' not found in upload directory")
+                        return result
+
+            text = str(config.get("text", ""))
+            if text.strip():
+                file_path = Path("")
+                original_name = "inline_text"
+                ext = ""
+            else:
+                file_path = Path(file_data["path"])
+                if not file_path.exists():
+                    result.fail(f"File not found at path: {file_path}")
                     return result
-                file_data = await self._resolve_by_file_id(file_id)
-                if not file_data:
-                    result.fail(f"File with ID '{file_id}' not found in upload directory")
+                original_name = file_data.get("filename", file_path.name)
+                ext = file_path.suffix.lower()
+                if ext not in allowed_exts:
+                    result.fail(f"File extension '{ext}' not allowed. Allowed: {allowed_exts}")
                     return result
 
-            file_path = Path(file_data["path"])
-            if not file_path.exists():
-                result.fail(f"File not found at path: {file_path}")
-                return result
-
-            original_name = file_data.get("filename", file_path.name)
-            ext = file_path.suffix.lower()
-            if ext not in allowed_exts:
-                result.fail(f"File extension '{ext}' not allowed. Allowed: {allowed_exts}")
-                return result
-
-            text = await self._extract_text(file_path, ext)
+            if not text.strip():
+                text = await self._extract_text(file_path, ext)
 
             if not text or not text.strip():
                 result.fail("Could not extract any text from the document")
@@ -185,6 +203,13 @@ class GapCheckerNode(BaseNode):
     async def _extract_text(self, file_path: Path, ext: str) -> str:
         if ext == ".txt":
             return file_path.read_text(encoding="utf-8", errors="replace")
+        if ext in (".docx", ".doc"):
+            import docx
+            try:
+                doc = docx.Document(str(file_path))
+                return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+            except Exception:
+                pass
         from backend.services.ocr import OCRService
 
         ocr = OCRService()

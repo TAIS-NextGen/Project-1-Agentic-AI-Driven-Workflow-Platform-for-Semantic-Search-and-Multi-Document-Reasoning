@@ -47,14 +47,83 @@ class WorkflowExecutor:
         validator = WorkflowValidator(self.graph, self._node_map)
         return validator.validate(mode)
 
+    def _collect_upstream_artifacts(self, node_id: str) -> list[dict[str, Any]]:
+        """Return successful upstream outputs ordered nearest-first.
+
+        Older nodes in the project use different output names for a processed file
+        (``document``, ``image``, ``converted_path``, ``cleaned_document``...).  A
+        downstream node can inspect this lineage to recover the latest artifact even
+        when an edge was created before explicit port selection existed in the UI.
+        """
+        artifacts: list[dict[str, Any]] = []
+        queue: list[tuple[str, int]] = [(source_id, 1) for source_id in self.graph.get_upstream(node_id)]
+        visited: set[str] = set()
+        preferred_ports = {
+            "document": 0,
+            "latest_document": 1,
+            "cleaned_document": 2,
+            "converted_path": 3,
+            "converted_file": 4,
+            "image": 5,
+            "file": 6,
+            "output_path": 7,
+            "text": 50,
+            "metadata": 100,
+        }
+
+        while queue:
+            source_id, distance = queue.pop(0)
+            if source_id in visited:
+                continue
+            visited.add(source_id)
+
+            source_result = self._results.get(source_id)
+            source_node = self.graph.get_node(source_id)
+            if source_result and source_result.status == NodeStatus.SUCCESS:
+                ordered_outputs = sorted(
+                    source_result.outputs.items(),
+                    key=lambda item: preferred_ports.get(item[0], 20),
+                )
+                for output_port, value in ordered_outputs:
+                    artifacts.append({
+                        "source_node_id": source_id,
+                        "source_node_type": source_node.node_type if source_node else None,
+                        "output_port": output_port,
+                        "distance": distance,
+                        "value": value,
+                    })
+
+            for parent_id in self.graph.get_upstream(source_id):
+                if parent_id not in visited:
+                    queue.append((parent_id, distance + 1))
+
+        return artifacts
+
     def _resolve_inputs(self, node_id: str) -> dict[str, Any]:
         inputs: dict[str, Any] = {}
+        input_sources: list[dict[str, Any]] = []
         incoming, _ = self.graph.get_edges(node_id)
         for edge in incoming:
             source_result = self._results.get(edge.source_id)
+            source_node = self.graph.get_node(edge.source_id)
             if source_result and source_result.status == NodeStatus.SUCCESS:
                 value = source_result.get_output(edge.source_port)
-                inputs[edge.target_port] = value
+                if value is not None:
+                    inputs[edge.target_port] = value
+                    input_sources.append({
+                        "source_node_id": edge.source_id,
+                        "source_node_type": source_node.node_type if source_node else None,
+                        "source_port": edge.source_port,
+                        "target_port": edge.target_port,
+                    })
+
+        # Internal source metadata is available to every node. It lets nodes report
+        # which upstream node and output supplied a text, document, image, or data input.
+        inputs["__input_sources__"] = input_sources
+
+        # Internal lineage metadata is ignored by ordinary nodes but lets artifact-
+        # aware nodes select the nearest processed document or text version.
+        inputs["__upstream_artifacts__"] = self._collect_upstream_artifacts(node_id)
         return inputs
 
     def _create_context(self, node_id: str, node_cls: type[BaseNode],
@@ -106,11 +175,22 @@ class WorkflowExecutor:
         scheduler = WorkflowScheduler(self.graph)
         groups = scheduler.parallel_groups()
 
+        route_by_router: dict[str, str] = {}
+        skipped: set[str] = set()
+
         for group in groups:
-            tasks = [self.execute_node(nid) for nid in group]
+            runnable = [nid for nid in group if nid not in skipped]
+
+            for nid in group:
+                if nid not in runnable and nid not in self._results:
+                    r = NodeResult(nid)
+                    r.skip("Not selected by Router")
+                    self._results[nid] = r
+
+            tasks = [self.execute_node(nid) for nid in runnable]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            for nid, res in zip(group, results):
+            for nid, res in zip(runnable, results):
                 if isinstance(res, Exception):
                     r = NodeResult(nid)
                     r.fail(str(res))
@@ -118,10 +198,38 @@ class WorkflowExecutor:
 
                 if nid in self.graph.nodes:
                     node_def = self.graph.get_node(nid)
-                    if node_def and node_def.node_type in ("planner", "router"):
+                    if node_def and node_def.node_type in ("planner",):
                         await self._handle_dynamic_subgraph(nid)
 
+            for nid in runnable:
+                node_def = self.graph.get_node(nid)
+                if node_def and node_def.node_type == "router":
+                    r = self._results.get(nid)
+                    if r and r.status == NodeStatus.SUCCESS:
+                        route = r.get_output("route")
+                        if isinstance(route, str) and route:
+                            route_by_router[nid] = route
+
+            if route_by_router:
+                skipped = self._compute_skipped_nodes(route_by_router)
+
         return self._results
+
+    def _compute_skipped_nodes(self, route_by_router: dict[str, str]) -> set[str]:
+        control_incoming: dict[str, list[tuple[str, str | None]]] = {}
+        for e in self.graph.edges:
+            if e.kind == "control":
+                control_incoming.setdefault(e.target_id, []).append((e.source_id, e.condition))
+
+        skipped: set[str] = set()
+        for nid, controls in control_incoming.items():
+            decided = [(src, cond) for src, cond in controls if src in route_by_router]
+            if not decided:
+                continue
+            if any(route_by_router.get(src) == cond for src, cond in decided):
+                continue
+            skipped.add(nid)
+        return skipped
 
     async def _handle_dynamic_subgraph(self, planner_node_id: str) -> None:
         result = self._results.get(planner_node_id)
