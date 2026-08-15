@@ -59,6 +59,14 @@ class SummarizerNode(BaseNode):
             default="",
             description="Optional model override (e.g. gpt-4o). Leaves empty for default.",
         ),
+        ConfigField(
+            key="text",
+            label="Text",
+            type="text",
+            required=False,
+            default="",
+            description="Text to summarize. Leave empty if provided via upstream connection.",
+        ),
     ]
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
@@ -70,7 +78,7 @@ class SummarizerNode(BaseNode):
             style = config.get("style", "short")
             model = config.get("model", "")
 
-            text = ctx.get_input("text", "")
+            text = ctx.get_input("text", "") or str(config.get("text", ""))
             if not isinstance(text, str) or not text.strip():
                 result.fail("No valid text provided for summarization")
                 return result

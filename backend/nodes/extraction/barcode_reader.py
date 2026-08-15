@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import os
+from pathlib import Path
 from typing import Any
 
 from backend.sdk import (
@@ -62,6 +65,14 @@ class BarcodeReaderNode(BaseNode):
             default=True,
             description="If true, generates an output image with green boxes highlighting detected codes",
         ),
+        ConfigField(
+            key="file_id",
+            label="File ID",
+            type="text",
+            required=False,
+            default="",
+            description="File ID from /api/documents/upload. Leave empty if image comes from upstream node.",
+        ),
     ]
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
@@ -80,6 +91,13 @@ class BarcodeReaderNode(BaseNode):
                 image_path = image_input["path"]
             elif isinstance(image_input, str):
                 image_path = image_input
+
+            if not image_path or not image_path.strip():
+                file_id = config.get("file_id", "")
+                if file_id:
+                    file_data = await self._resolve_by_file_id(file_id)
+                    if file_data:
+                        image_path = file_data.get("path", "")
 
             if not image_path or not image_path.strip():
                 result.fail("No valid image provided to the Barcode Reader node")
@@ -101,3 +119,31 @@ class BarcodeReaderNode(BaseNode):
             result.fail(f"Barcode Reader node execution failed: {e}")
 
         return result
+
+    async def _resolve_by_file_id(self, file_id: str) -> dict[str, Any] | None:
+        upload_dir = Path(os.getenv("UPLOAD_DIR", "data/uploads"))
+        if not upload_dir.exists():
+            return None
+        index_path = upload_dir / ".documents-index.json"
+        if index_path.exists():
+            try:
+                index = json.loads(index_path.read_text(encoding="utf-8"))
+                record = index.get(file_id) if isinstance(index, dict) else None
+                if record:
+                    file_path = Path(record.get("path", ""))
+                    if file_path.exists():
+                        return {
+                            "file_id": file_id,
+                            "filename": record.get("filename", file_path.name),
+                            "path": str(file_path),
+                        }
+            except (OSError, json.JSONDecodeError):
+                pass
+        for f in upload_dir.iterdir():
+            if f.is_file() and not f.name.startswith(".") and f.stem == file_id:
+                return {
+                    "file_id": file_id,
+                    "filename": f.name,
+                    "path": str(f),
+                }
+        return None

@@ -107,6 +107,9 @@ class HandwritingOCRNode(BaseNode):
 
             file_data: dict[str, Any] | None = ctx.get_input("image")
 
+            if isinstance(file_data, str):
+                file_data = {"path": file_data, "filename": Path(file_data).name}
+
             if not file_data:
                 file_id = config.get("file_id", "")
                 if not file_id:
@@ -117,7 +120,7 @@ class HandwritingOCRNode(BaseNode):
                     result.fail(f"File with ID '{file_id}' not found in upload directory")
                     return result
 
-            file_path = Path(file_data["path"])
+            file_path = Path(file_data.get("path") or file_data.get("file_path", ""))
             if not file_path.exists():
                 result.fail(f"File not found at path: {file_path}")
                 return result

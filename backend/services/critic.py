@@ -530,14 +530,14 @@ SOURCE DOCUMENTS (EVIDENCE):
 {formatted_evidence}
 
 AI-GENERATED RESPONSE TO VERIFY:
-{generated_response[:6000]}"""
+{generated_response[:2000]}"""
 
         llm = self._get_llm()
         response_text = await llm.generate(
             prompt=prompt,
             system_prompt=CRITIC_SYSTEM_PROMPT,
             temperature=0.0,
-            max_tokens=4096,
+            max_tokens=1024,
             disable_thinking=True,
         )
 

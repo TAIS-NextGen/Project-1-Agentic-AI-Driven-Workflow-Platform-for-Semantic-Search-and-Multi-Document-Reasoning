@@ -49,7 +49,7 @@ class AnswerGeneratorService:
             prompt=prompt,
             system_prompt=ANSWER_GENERATOR_SYSTEM_PROMPT,
             temperature=0.0,
-            max_tokens=1024,
+            max_tokens=512,
         )
 
         return self._parse_response(raw_response)

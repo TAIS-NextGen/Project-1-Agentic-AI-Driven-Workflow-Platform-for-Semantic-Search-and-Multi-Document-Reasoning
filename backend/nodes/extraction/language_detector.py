@@ -83,6 +83,14 @@ class LanguageDetectorNode(BaseNode):
             default=5,
             description="Maximum number of unique languages to return",
         ),
+        ConfigField(
+            key="text",
+            label="Text",
+            type="text",
+            required=False,
+            default="",
+            description="Text to detect language from. Leave empty if provided via upstream connection.",
+        ),
     ]
 
     async def execute(self, ctx: ExecutionContext) -> NodeResult:
@@ -95,7 +103,7 @@ class LanguageDetectorNode(BaseNode):
             min_prob = float(config.get("min_probability", 0.1))
             max_langs = int(config.get("max_languages", 5))
 
-            text = ctx.get_input("text", "")
+            text = ctx.get_input("text", "") or str(config.get("text", ""))
             if not isinstance(text, str) or not text.strip():
                 file_id = config.get("file_id", "")
                 if not file_id:
