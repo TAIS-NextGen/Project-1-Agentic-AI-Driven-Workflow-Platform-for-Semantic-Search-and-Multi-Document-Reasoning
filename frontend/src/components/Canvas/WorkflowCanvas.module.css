@@ -269,6 +269,21 @@
   cursor: pointer;
 }
 .templateButtons button:hover { color: #fff; border-color: rgba(129, 140, 248, 0.32); }
+.templateButtons button.referenceTemplate {
+  grid-column: 1 / -1;
+  border-style: dashed;
+  color: #7c8aa3;
+  background: rgba(148, 163, 184, 0.04);
+}
+.templateButtons button.referenceTemplate em {
+  font-style: normal;
+  font-size: 8px;
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 5px;
+  padding: 1px 5px;
+  margin-left: auto;
+}
 
 .editorArea { flex: 1; min-width: 0; display: flex; flex-direction: column; position: relative; }
 
@@ -372,6 +387,9 @@
 .wire { stroke: url(#wire-gradient); opacity: .72; }
 .wireGroup:hover .wire { opacity: 1; stroke-width: 2.8; filter: url(#wire-glow); }
 .wirePreview { stroke-dasharray: 8 8; animation: dash 1s linear infinite; }
+.controlWire { stroke: #f59e0b; stroke-dasharray: 6 6; opacity: .8; }
+.controlWireShadow { stroke: rgba(245, 158, 11, 0.18); }
+.controlLabel { fill: #f59e0b; font-size: 9px; font-weight: 700; text-anchor: middle; pointer-events: none; }
 @keyframes dash { to { stroke-dashoffset: -32; } }
 .wireHotspot { fill: none; stroke: transparent; stroke-width: 15; cursor: pointer; pointer-events: stroke; }
 .wireDeleteNode { fill: #15192a; stroke: #fb7185; opacity: 0; pointer-events: fill; cursor: pointer; transition: opacity 140ms ease; }

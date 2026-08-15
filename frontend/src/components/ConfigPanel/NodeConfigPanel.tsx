@@ -240,7 +240,7 @@ export function NodeConfigPanel({ backendDefinitions = [] }: { backendDefinition
 
 
   useEffect(() => {
-    if (!node || !['document-input', 'document-upload'].includes(node.type)) return;
+    if (!node || !['document-input', 'document-upload', 'document-batch-upload'].includes(node.type)) return;
     let mounted = true;
     setLibraryLoading(true);
     listDocuments()
@@ -346,6 +346,52 @@ export function NodeConfigPanel({ backendDefinitions = [] }: { backendDefinition
       setUploadMessage(parts.join(' '));
     } catch (error) {
       setUploadMessage(error instanceof Error ? error.message : 'Folder import failed.');
+    } finally {
+      setUploading(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleUploadBatch = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    const supported = /\.(pdf|docx|xlsx|xlsm|csv|txt|md|png|jpg|jpeg|tiff|tif|bmp|webp)$/i;
+    const acceptedFiles = files.filter((file) => supported.test(file.name));
+    const rejectedCount = files.length - acceptedFiles.length;
+    if (!acceptedFiles.length) {
+      setUploadMessage('No supported documents selected.');
+      event.target.value = '';
+      return;
+    }
+
+    setUploading(true);
+    setUploadMessage(`Uploading ${acceptedFiles.length} document${acceptedFiles.length === 1 ? '' : 's'}…`);
+    try {
+      const payload = await uploadDocuments(acceptedFiles, acceptedFiles.map((file) => file.name));
+      const documents = payload.documents.map((document) => ({
+        file_id: document.file_id,
+        filename: document.filename,
+        relative_path: document.relative_path || document.filename,
+        path: document.path,
+        mime_type: document.mime_type,
+        extension: document.extension,
+        size_bytes: document.size_bytes,
+      }));
+      const updatedConfig = {
+        ...localConfig,
+        file_ids: documents.map((document) => document.file_id),
+        documents,
+        document_count: documents.length,
+      };
+      setLocalConfig(updatedConfig);
+      updateNodeConfig(node.id, updatedConfig);
+      const parts = [`${documents.length} document${documents.length === 1 ? '' : 's'} imported.`];
+      if (payload.failed) parts.push(`${payload.failed} file${payload.failed === 1 ? '' : 's'} could not be imported.`);
+      if (rejectedCount) parts.push(`${rejectedCount} unsupported file${rejectedCount === 1 ? '' : 's'} ignored.`);
+      setUploadMessage(parts.join(' '));
+    } catch (error) {
+      setUploadMessage(error instanceof Error ? error.message : 'Batch import failed.');
     } finally {
       setUploading(false);
       event.target.value = '';
@@ -702,6 +748,47 @@ export function NodeConfigPanel({ backendDefinitions = [] }: { backendDefinition
             </div>
           </>
         );
+
+      case 'document-batch-upload': {
+        const fileIds = Array.isArray(localConfig.file_ids) ? localConfig.file_ids : [];
+        return (
+          <>
+            <div className={styles.infoCard}>
+              <strong>Batch document source</strong>
+              <span>Select multiple documents to import them into the library at once.</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Select multiple documents</label>
+              <input
+                type="file"
+                multiple
+                accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif,.bmp,.webp,.docx,.txt,.md,.csv,.xlsx,.xlsm"
+                onChange={handleUploadBatch}
+                className={styles.fileInput}
+              />
+              {uploading && <p className={styles.helpText}>Uploading…</p>}
+              {uploadMessage && <p className={styles.helpText}>{uploadMessage}</p>}
+            </div>
+            {fileIds.length > 0 && (
+              <div className={styles.formGroup}>
+                <label>{fileIds.length} document{fileIds.length === 1 ? '' : 's'} selected</label>
+                <span className={styles.helpText}>These files are now available in the document library for other nodes.</span>
+              </div>
+            )}
+            <div className={styles.formGroup}>
+              <label>Max File Size (MB): {localConfig.max_file_size_mb ?? 50}</label>
+              <input
+                type="number"
+                min="1"
+                max="500"
+                value={localConfig.max_file_size_mb ?? 50}
+                onChange={(e) => handleUpdateField('max_file_size_mb', parseInt(e.target.value, 10))}
+                className={styles.textInput}
+              />
+            </div>
+          </>
+        );
+      }
 
       case 'corpus-input': {
         const documents = Array.isArray(localConfig.documents) ? localConfig.documents : [];

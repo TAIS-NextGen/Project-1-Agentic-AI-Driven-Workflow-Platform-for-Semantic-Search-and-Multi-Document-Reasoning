@@ -144,5 +144,18 @@ class LLMService:
             raise
 
     async def embed(self, text: str) -> list[float]:
-        logger.warning("LLMService.embed() not implemented — using mock")
-        return [0.0] * 1536
+        result = await self.embed_batch([text])
+        return result[0] if result else [0.0] * 384
+
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        if not self.base_url and not self.api_key:
+            logger.warning("LLMService.embed_batch() — no base URL configured, using mock")
+            return [[0.0] * 384 for _ in texts]
+
+        client = self._get_client()
+        try:
+            response = await client.embeddings.create(model=self.model, input=texts)
+            return [item.embedding for item in response.data]
+        except Exception as e:
+            logger.error(f"LLMService.embed_batch() failed: {e}")
+            raise

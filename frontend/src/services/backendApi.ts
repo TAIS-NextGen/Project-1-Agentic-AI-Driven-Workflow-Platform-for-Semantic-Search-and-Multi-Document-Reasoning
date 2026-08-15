@@ -180,3 +180,37 @@ export async function executeSingleNode(
   const payload = await response.json();
   return payload.results[nodeId] as NodeExecutionResult;
 }
+
+export interface QaAskResponse {
+  question: string;
+  answer: string;
+  retrieved_chunks: Array<{ chunk_text: string; filename: string; score: number }>;
+  index_stats: { documents: number; chunks: number };
+  verdict?: unknown;
+}
+
+export async function askQuestion(question: string, topK = 5): Promise<QaAskResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/qa/ask`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question, top_k: topK }),
+  });
+  if (!response.ok) throw await parseError(response, `QA ask failed (${response.status})`);
+  return response.json();
+}
+
+export async function indexDocuments(fileIds: string[]): Promise<Record<string, unknown>> {
+  const response = await fetch(`${API_BASE_URL}/api/qa/index`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ file_ids: fileIds }),
+  });
+  if (!response.ok) throw await parseError(response, `Index failed (${response.status})`);
+  return response.json();
+}
+
+export async function getQaStats(): Promise<{ documents: number; chunks: number }> {
+  const response = await fetch(`${API_BASE_URL}/api/qa/stats`);
+  if (!response.ok) throw await parseError(response, `QA stats failed (${response.status})`);
+  return response.json();
+}

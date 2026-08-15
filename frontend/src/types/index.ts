@@ -3,6 +3,7 @@ export type AppRoute =
   | 'workflows'
   | 'documents'
   | 'executions'
+  | 'qa-chat'
   | 'settings';
 
 export interface SidebarUser {
@@ -26,6 +27,8 @@ export interface FlowEdge {
   target: string;
   sourcePort?: string;
   targetPort?: string;
+  condition?: string;
+  kind?: 'data' | 'control';
 }
 
 export interface WorkflowViewport {

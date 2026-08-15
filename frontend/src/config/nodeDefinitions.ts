@@ -454,6 +454,30 @@ export const NODE_DEFINITIONS: NodeDefinition[] = [
     defaultConfig: { expression: '' },
   },
   {
+    type: 'router',
+    name: 'Router (Rule-Based)',
+    category: 'Logic/Conditions',
+    icon: '🧭',
+    color: CATEGORY_COLORS['Logic/Conditions'],
+    description: 'Deterministically select the extraction branch from the document extension',
+    defaultConfig: {
+      default_route: 'ocr',
+      rules: [
+        { route: 'parser', extensions: ['.docx', '.pdf'] },
+        { route: 'ocr', extensions: ['.png', '.jpg', '.jpeg', '.tiff', '.bmp'] },
+      ],
+    },
+    backendType: 'router',
+    inputs: [
+      { name: 'document', label: 'Document', type: 'document', required: false },
+      { name: 'filename', label: 'Filename', type: 'text', required: false },
+    ],
+    outputs: [
+      { name: 'route', label: 'Route', type: 'text' },
+      { name: 'confidence', label: 'Confidence', type: 'json' },
+    ],
+  },
+  {
     type: 'file-converter',
     name: 'File Converter',
     category: 'Preprocessing',

@@ -175,11 +175,22 @@ class WorkflowExecutor:
         scheduler = WorkflowScheduler(self.graph)
         groups = scheduler.parallel_groups()
 
+        route_by_router: dict[str, str] = {}
+        skipped: set[str] = set()
+
         for group in groups:
-            tasks = [self.execute_node(nid) for nid in group]
+            runnable = [nid for nid in group if nid not in skipped]
+
+            for nid in group:
+                if nid not in runnable and nid not in self._results:
+                    r = NodeResult(nid)
+                    r.skip("Not selected by Router")
+                    self._results[nid] = r
+
+            tasks = [self.execute_node(nid) for nid in runnable]
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            for nid, res in zip(group, results):
+            for nid, res in zip(runnable, results):
                 if isinstance(res, Exception):
                     r = NodeResult(nid)
                     r.fail(str(res))
@@ -187,10 +198,38 @@ class WorkflowExecutor:
 
                 if nid in self.graph.nodes:
                     node_def = self.graph.get_node(nid)
-                    if node_def and node_def.node_type in ("planner", "router"):
+                    if node_def and node_def.node_type in ("planner",):
                         await self._handle_dynamic_subgraph(nid)
 
+            for nid in runnable:
+                node_def = self.graph.get_node(nid)
+                if node_def and node_def.node_type == "router":
+                    r = self._results.get(nid)
+                    if r and r.status == NodeStatus.SUCCESS:
+                        route = r.get_output("route")
+                        if isinstance(route, str) and route:
+                            route_by_router[nid] = route
+
+            if route_by_router:
+                skipped = self._compute_skipped_nodes(route_by_router)
+
         return self._results
+
+    def _compute_skipped_nodes(self, route_by_router: dict[str, str]) -> set[str]:
+        control_incoming: dict[str, list[tuple[str, str | None]]] = {}
+        for e in self.graph.edges:
+            if e.kind == "control":
+                control_incoming.setdefault(e.target_id, []).append((e.source_id, e.condition))
+
+        skipped: set[str] = set()
+        for nid, controls in control_incoming.items():
+            decided = [(src, cond) for src, cond in controls if src in route_by_router]
+            if not decided:
+                continue
+            if any(route_by_router.get(src) == cond for src, cond in decided):
+                continue
+            skipped.add(nid)
+        return skipped
 
     async def _handle_dynamic_subgraph(self, planner_node_id: str) -> None:
         result = self._results.get(planner_node_id)

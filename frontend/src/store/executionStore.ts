@@ -284,6 +284,16 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       .map((edge) => {
         const sourceNode = currentNodes.find((node) => node.id === edge.source);
         const targetNode = currentNodes.find((node) => node.id === edge.target);
+        if (edge.kind === 'control') {
+          return {
+            source: edge.source,
+            source_port: '',
+            target: edge.target,
+            target_port: '',
+            condition: edge.condition,
+            kind: 'control',
+          };
+        }
         let targetPort = edge.targetPort;
         if (targetNode?.type === 'comparison-agent' && (!targetPort || targetPort === 'input')) {
           const incoming = currentEdges.filter((candidate) => candidate.target === edge.target);
@@ -296,6 +306,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
           source_port: ports.sourcePort,
           target: edge.target,
           target_port: ports.targetPort,
+          condition: edge.condition,
+          kind: edge.kind || 'data',
         };
       });
 

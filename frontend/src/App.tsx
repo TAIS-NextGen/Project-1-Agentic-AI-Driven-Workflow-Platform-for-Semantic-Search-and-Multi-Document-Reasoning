@@ -6,6 +6,7 @@ import { DocumentsView } from './components/Documents/DocumentsView';
 import { WorkflowCanvas } from './components/Canvas/WorkflowCanvas';
 import { WorkflowManager } from './components/WorkflowManager/WorkflowManager';
 import { ExecutionView } from './components/Execution/ExecutionView';
+import { QAChatView } from './components/QAChat/QAChatView';
 import { useExecutionStore } from './store/executionStore';
 import { useWorkflowStore } from './store/workflowStore';
 import type { AppRoute } from './types';
@@ -74,6 +75,7 @@ export function App() {
             : <WorkflowManager />
         )}
         {view === 'executions' && <ExecutionView />}
+        {view === 'qa-chat' && <QAChatView />}
         {view === 'settings' && <SettingsView theme={theme} onToggleTheme={toggleTheme} />}
       </main>
     </div>

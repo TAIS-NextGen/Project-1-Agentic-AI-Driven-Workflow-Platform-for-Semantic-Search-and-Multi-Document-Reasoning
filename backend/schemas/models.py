@@ -16,6 +16,8 @@ class EdgeSchema(BaseModel):
     source_port: str = Field("output", description="Source port name")
     target: str = Field(..., description="Target node ID")
     target_port: str = Field("input", description="Target port name")
+    condition: str | None = Field(None, description="Route condition for control edges")
+    kind: str = Field("data", description="Edge kind: 'data' or 'control'")
 
 
 class ExecuteWorkflowRequest(BaseModel):

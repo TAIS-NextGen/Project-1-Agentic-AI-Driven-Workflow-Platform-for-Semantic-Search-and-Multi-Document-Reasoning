@@ -62,6 +62,12 @@ class DocumentBatchUploadNode(BaseNode):
             label="Document Count",
             description="Number of documents processed",
         ),
+        Port(
+            name="file_ids",
+            type=PortType.JSON,
+            label="File IDs",
+            description="Original library file IDs (for downstream indexing)",
+        ),
     ]
 
     config_fields = [
@@ -105,6 +111,7 @@ class DocumentBatchUploadNode(BaseNode):
             max_bytes = int(config.get("max_file_size_mb", 50)) * 1024 * 1024
 
             file_list: list[dict[str, Any]] = ctx.get_input("documents") or []
+            resolved_file_ids: list[str] = []
 
             if not file_list:
                 file_ids = config.get("file_ids", [])
@@ -120,6 +127,7 @@ class DocumentBatchUploadNode(BaseNode):
                     if not file_data:
                         result.fail(f"File with ID '{file_id}' not found in upload directory")
                         return result
+                    resolved_file_ids.append(str(file_id))
                     file_list.append(file_data)
 
             documents = []
@@ -168,6 +176,7 @@ class DocumentBatchUploadNode(BaseNode):
                 "file_paths": file_paths,
                 "file_names": file_names,
                 "document_count": len(documents),
+                "file_ids": resolved_file_ids,
             })
 
         except Exception as e:

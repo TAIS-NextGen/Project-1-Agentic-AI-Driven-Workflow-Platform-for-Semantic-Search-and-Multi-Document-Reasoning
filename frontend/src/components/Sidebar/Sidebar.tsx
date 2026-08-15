@@ -68,6 +68,16 @@ const NAV_ITEMS: NavItemConfig[] = [
     ),
   },
   {
+    route: 'qa-chat',
+    label: 'QA Chat',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M2.5 2.5H13.5V10.5H7L4 13V10.5H2.5V2.5Z" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round" />
+        <path d="M5 5.5H11M5 7.5H9" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     route: 'settings',
     label: 'Settings',
     icon: (

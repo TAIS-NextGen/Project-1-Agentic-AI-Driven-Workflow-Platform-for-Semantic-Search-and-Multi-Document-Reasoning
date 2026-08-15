@@ -162,17 +162,88 @@ const TEMPLATE_FLOWS: Record<string, { nodes: FlowNode[]; edges: FlowEdge[] }> =
   },
   rag: {
     nodes: [
-      { id: 'r1', type: 'document-input', position: { x: 100, y: 150 }, config: {}, status: 'ready' },
-      { id: 'r2', type: 'text-splitter', position: { x: 360, y: 150 }, config: { chunkSize: 1000, overlap: 100 }, status: 'idle' },
-      { id: 'r3', type: 'embedding', position: { x: 620, y: 150 }, config: { model: 'text-embedding-3-small' }, status: 'idle' },
-      { id: 'r4', type: 'vector-store', position: { x: 880, y: 150 }, config: { collection: 'rag-docs' }, status: 'idle' },
-      { id: 'r5', type: 'rag', position: { x: 1140, y: 250 }, config: { topK: 3 }, status: 'idle' },
+      { id: 'r1', type: 'document-batch-upload', position: { x: 100, y: 220 }, config: {}, status: 'ready' },
+      { id: 'r2', type: 'index-documents', position: { x: 480, y: 220 }, config: {}, status: 'idle' },
     ],
     edges: [
-      { id: 'er1', source: 'r1', target: 'r2' },
-      { id: 'er2', source: 'r2', target: 'r3' },
-      { id: 'er3', source: 'r3', target: 'r4' },
-      { id: 'er4', source: 'r4', target: 'r5' },
+      { id: 'er1', source: 'r1', target: 'r2', sourcePort: 'file_ids', targetPort: 'file_ids' },
+    ],
+  },
+  // Reference-only template: the full 9-node B1 fixed RAG chain, shown as a
+  // visual figure for the paper. Do NOT run — the query nodes have no question.
+  'rag-pipeline-reference': {
+    nodes: [
+      { id: 'rp1', type: 'document-upload', position: { x: 60, y: 260 }, config: {}, status: 'ready' },
+      { id: 'rp2', type: 'paddle-ocr', position: { x: 300, y: 260 }, config: { language: 'en' }, status: 'idle' },
+      { id: 'rp3', type: 'text-cleaner', position: { x: 540, y: 260 }, config: {}, status: 'idle' },
+      { id: 'rp4', type: 'text-splitter', position: { x: 780, y: 260 }, config: { chunk_size: 512, chunk_overlap: 100 }, status: 'idle' },
+      { id: 'rp5', type: 'embedding-node', position: { x: 1020, y: 170 }, config: { model_name: 'nomic-embed-text' }, status: 'idle' },
+      { id: 'rp5q', type: 'embedding-node', position: { x: 1020, y: 370 }, config: { model_name: 'nomic-embed-text', chunks: '["What is the total amount?"]' }, status: 'idle' },
+      { id: 'rp6', type: 'vector-store', position: { x: 1260, y: 270 }, config: { collection: 'rag-pipeline', top_k: 5 }, status: 'idle' },
+      { id: 'rp7', type: 'prompt-builder', position: { x: 1500, y: 270 }, config: { question: '', prompt_template: 'qa_concise', language: 'en' }, status: 'idle' },
+      { id: 'rp8', type: 'answer-generator', position: { x: 1740, y: 270 }, config: { question: '', agent_results: '{}' }, status: 'idle' },
+    ],
+    edges: [
+      { id: 'rpe1', source: 'rp1', target: 'rp2', sourcePort: 'document', targetPort: 'image' },
+      { id: 'rpe2', source: 'rp2', target: 'rp3', sourcePort: 'text', targetPort: 'text' },
+      { id: 'rpe3', source: 'rp3', target: 'rp4', sourcePort: 'cleaned_text', targetPort: 'text' },
+      { id: 'rpe4', source: 'rp4', target: 'rp5', sourcePort: 'chunks', targetPort: 'chunks' },
+      { id: 'rpe5', source: 'rp5', target: 'rp6', sourcePort: 'embeddings', targetPort: 'embeddings' },
+      { id: 'rpe6', source: 'rp4', target: 'rp6', sourcePort: 'chunks', targetPort: 'chunks' },
+      { id: 'rpe7', source: 'rp5q', target: 'rp6', sourcePort: 'embeddings', targetPort: 'query_embedding' },
+      { id: 'rpe8', source: 'rp6', target: 'rp7', sourcePort: 'results', targetPort: 'chunks' },
+      { id: 'rpe9', source: 'rp7', target: 'rp8', sourcePort: 'prompt', targetPort: 'question' },
+      { id: 'rpe10', source: 'rp6', target: 'rp8', sourcePort: 'results', targetPort: 'agent_results' },
+    ],
+  },
+  // Runnable single-document pipeline: indexes one document into the shared QA
+  // index. Questions are asked in the QA Chat panel (not in this workflow).
+  'rag-pipeline': {
+    nodes: [
+      { id: 'rp1', type: 'document-upload', position: { x: 60, y: 260 }, config: {}, status: 'ready' },
+      { id: 'rp2', type: 'paddle-ocr', position: { x: 300, y: 260 }, config: { language: 'en' }, status: 'idle' },
+      { id: 'rp3', type: 'text-cleaner', position: { x: 540, y: 260 }, config: {}, status: 'idle' },
+      { id: 'rp4', type: 'text-splitter', position: { x: 780, y: 260 }, config: { chunk_size: 512, chunk_overlap: 100 }, status: 'idle' },
+      { id: 'rp5', type: 'embedding-node', position: { x: 1020, y: 260 }, config: { model_name: 'nomic-embed-text' }, status: 'idle' },
+      { id: 'rp6', type: 'vector-store', position: { x: 1260, y: 260 }, config: { collection: 'rag-pipeline', top_k: 5 }, status: 'idle' },
+    ],
+    edges: [
+      { id: 'rpe1', source: 'rp1', target: 'rp2', sourcePort: 'document', targetPort: 'image' },
+      { id: 'rpe2', source: 'rp2', target: 'rp3', sourcePort: 'text', targetPort: 'text' },
+      { id: 'rpe3', source: 'rp3', target: 'rp4', sourcePort: 'cleaned_text', targetPort: 'text' },
+      { id: 'rpe4', source: 'rp4', target: 'rp5', sourcePort: 'chunks', targetPort: 'chunks' },
+      { id: 'rpe5', source: 'rp5', target: 'rp6', sourcePort: 'embeddings', targetPort: 'embeddings' },
+      { id: 'rpe6', source: 'rp4', target: 'rp6', sourcePort: 'chunks', targetPort: 'chunks' },
+      { id: 'rpe7', source: 'rp1', target: 'rp6', sourcePort: 'file_name', targetPort: 'filename' },
+    ],
+  },
+  // B3 — rule-based routing: the Router deterministically selects the extraction
+  // branch (OCR vs parser) from the document extension. Branches read the document
+  // directly from the upload node; control edges only gate which branch executes.
+  'b3-routing': {
+    nodes: [
+      { id: 'b1', type: 'document-upload', position: { x: 60, y: 280 }, config: {}, status: 'ready' },
+      { id: 'b2', type: 'router', position: { x: 320, y: 120 }, config: { default_route: 'ocr', rules: [{ route: 'parser', extensions: ['.docx', '.pdf'] }, { route: 'ocr', extensions: ['.png', '.jpg', '.jpeg', '.tiff', '.bmp'] }] }, status: 'idle' },
+      { id: 'b3', type: 'paddle-ocr', position: { x: 320, y: 280 }, config: { language: 'en' }, status: 'idle' },
+      { id: 'b4', type: 'document-parser', position: { x: 320, y: 440 }, config: {}, status: 'idle' },
+      { id: 'b5', type: 'text-cleaner', position: { x: 600, y: 280 }, config: {}, status: 'idle' },
+      { id: 'b6', type: 'text-splitter', position: { x: 840, y: 280 }, config: { chunk_size: 512, chunk_overlap: 100 }, status: 'idle' },
+      { id: 'b7', type: 'embedding-node', position: { x: 1080, y: 280 }, config: { model_name: 'nomic-embed-text' }, status: 'idle' },
+      { id: 'b8', type: 'vector-store', position: { x: 1320, y: 280 }, config: { collection: 'b3', top_k: 5 }, status: 'idle' },
+    ],
+    edges: [
+      { id: 'be1', source: 'b1', target: 'b2', sourcePort: 'document', targetPort: 'document' },
+      { id: 'be2', source: 'b1', target: 'b3', sourcePort: 'document', targetPort: 'image' },
+      { id: 'be3', source: 'b1', target: 'b4', sourcePort: 'document', targetPort: 'document' },
+      { id: 'be4', source: 'b3', target: 'b5', sourcePort: 'text', targetPort: 'text' },
+      { id: 'be5', source: 'b4', target: 'b5', sourcePort: 'text', targetPort: 'text' },
+      { id: 'be6', source: 'b5', target: 'b6', sourcePort: 'cleaned_text', targetPort: 'text' },
+      { id: 'be7', source: 'b6', target: 'b7', sourcePort: 'chunks', targetPort: 'chunks' },
+      { id: 'be8', source: 'b7', target: 'b8', sourcePort: 'embeddings', targetPort: 'embeddings' },
+      { id: 'be9', source: 'b6', target: 'b8', sourcePort: 'chunks', targetPort: 'chunks' },
+      { id: 'be10', source: 'b1', target: 'b8', sourcePort: 'file_name', targetPort: 'filename' },
+      { id: 'be11', source: 'b2', target: 'b3', kind: 'control', condition: 'ocr' },
+      { id: 'be12', source: 'b2', target: 'b4', kind: 'control', condition: 'parser' },
     ],
   },
 };

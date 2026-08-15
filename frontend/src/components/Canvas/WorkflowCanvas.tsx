@@ -455,7 +455,10 @@ export function WorkflowCanvas({ onRunWorkflow, onBackToWorkflows, theme, onTogg
                 <button onClick={() => loadTemplate('parser')}><span>📄</span>Parse documents</button>
                 <button onClick={() => loadTemplate('clustering')}><span>🧠</span>Topic clustering</button>
                 <button onClick={() => loadTemplate('comparison')}><span>⚖️</span>Compare documents</button>
-                <button onClick={() => loadTemplate('rag')}><span>🔎</span>RAG Search</button>
+                <button onClick={() => loadTemplate('rag')}><span>📦</span>Batch QA</button>
+                <button onClick={() => loadTemplate('rag-pipeline')}><span>🧩</span>RAG Pipeline</button>
+                <button onClick={() => loadTemplate('b3-routing')}><span>🧭</span>Rule-Based Routing (B3)</button>
+                <button className={styles.referenceTemplate} title="Visual reference only — do not run" onClick={() => loadTemplate('rag-pipeline-reference')}><span>🧩</span>RAG Pipeline <em>reference</em></button>
               </div>
             </div>
           </>
@@ -596,11 +599,12 @@ export function WorkflowCanvas({ onRunWorkflow, onBackToWorkflows, theme, onTogg
               const y2 = targetNode.position.y + 46;
               const controlOffset = Math.max(70, Math.abs(x2 - x1) * 0.42);
               const path = `M ${x1} ${y1} C ${x1 + controlOffset} ${y1}, ${x2 - controlOffset} ${y2}, ${x2} ${y2}`;
+              const isControl = edge.kind === 'control';
 
               return (
                 <g key={edge.id} className={styles.wireGroup}>
-                  <path d={path} className={styles.wireShadow} />
-                  <path d={path} className={styles.wire} />
+                  <path d={path} className={`${styles.wireShadow} ${isControl ? styles.controlWireShadow : ''}`} />
+                  <path d={path} className={`${styles.wire} ${isControl ? styles.controlWire : ''}`} />
                   <path d={path} className={styles.wireHotspot} onClick={() => deleteEdge(edge.id)} />
                   <circle
                     cx={(x1 + x2) / 2}
@@ -610,6 +614,9 @@ export function WorkflowCanvas({ onRunWorkflow, onBackToWorkflows, theme, onTogg
                     onClick={() => deleteEdge(edge.id)}
                   />
                   <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 + 3} className={styles.wireDeleteText}>×</text>
+                  {isControl && edge.condition && (
+                    <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 12} className={styles.controlLabel}>[{edge.condition}]</text>
+                  )}
                 </g>
               );
             })}

@@ -54,8 +54,8 @@ class EmbeddingNode(BaseNode):
             label="Model",
             type="text",
             required=False,
-            default="BAAI/bge-small-en-v1.5",
-            description="Sentence-transformers model name (bge or e5 family recommended)",
+            default="nomic-embed-text",
+            description="Embedding model name (served via Ollama, e.g. nomic-embed-text)",
         ),
         ConfigField(
             key="chunks",
@@ -73,7 +73,7 @@ class EmbeddingNode(BaseNode):
 
         try:
             config = self.get_resolved_config()
-            model_name = config.get("model_name", "BAAI/bge-small-en-v1.5")
+            model_name = config.get("model_name", "nomic-embed-text")
 
             chunks: list[str] | None = ctx.get_input("chunks")
             if not chunks:
@@ -89,7 +89,14 @@ class EmbeddingNode(BaseNode):
                 result.fail("No chunks provided via input port")
                 return result
 
-            valid_chunks = [c for c in chunks if isinstance(c, str) and c.strip()]
+            valid_chunks: list[str] = []
+            for c in chunks:
+                if isinstance(c, str) and c.strip():
+                    valid_chunks.append(c)
+                elif isinstance(c, dict):
+                    text = c.get("text", "") or c.get("chunk_text", "")
+                    if isinstance(text, str) and text.strip():
+                        valid_chunks.append(text)
             if not valid_chunks:
                 result.fail("Chunks input contained no valid non-empty strings")
                 return result
