@@ -12,6 +12,7 @@ services:
     environment:
       - SYMPACT_UPLOAD_DIR=/data/uploads
       - SYMPACT_STORAGE_DIR=/data/storage
+      - SYMPACT_LLM_BASE_URL=http://host.docker.internal:11434/v1
     volumes:
       - uploads:/data/uploads
       - storage:/data/storage
