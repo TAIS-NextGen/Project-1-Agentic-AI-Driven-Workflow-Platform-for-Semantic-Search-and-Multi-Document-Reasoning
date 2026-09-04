@@ -26,7 +26,7 @@ pause
 exit /b 1
 
 :RUN_WITH_PY
-py -3 "%LAUNCHER%"
+py -3.11 "%LAUNCHER%"
 goto FINISH
 
 :RUN_WITH_PYTHON
